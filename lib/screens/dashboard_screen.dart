@@ -6,8 +6,11 @@ import '../providers/dashboard_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
 import 'welcome_screen.dart';
-
-
+import 'tambah_transaksi_screen.dart';
+import 'riwayat_tab.dart';
+import 'kasbon_tab.dart';
+import '../providers/riwayat_provider.dart';
+import '../providers/kasbon_provider.dart';
 
 String _rupiah(double nilai, {bool spasi = false}) {
   if (nilai == 0) return 'Rp${spasi ? ' ' : ''}0';
@@ -63,27 +66,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           SafeArea(
             child: Column(
               children: [
-                _TopBar(
-                  namaUsaha: usahaAsync.value?.namaUsaha ?? '...',
-                  onLogout: _logout,
-                ),
+                if (_navIndex == 0 || _navIndex == 3)
+                  _TopBar(
+                    namaUsaha: usahaAsync.value?.namaUsaha ?? '...',
+                    onLogout: _logout,
+                  ),
                 Expanded(
-                  child: _navIndex == 0
-                      ? _BerandaTab(usahaAsync: usahaAsync)
-                      : _PlaceholderTab(label: _navLabel(_navIndex)),
+                  child: switch (_navIndex) {
+                    0 => _BerandaTab(usahaAsync: usahaAsync),
+                    1 => const RiwayatTab(),
+                    2 => const KasbonTab(),
+                    _ => _PlaceholderTab(label: _navLabel(_navIndex)),
+                  },
                 ),
               ],
             ),
           ),
 
-          Positioned(
-            right: 16,
-            bottom: 74,
-            child: _MicFab(onTap: () {}),
-          ),
+          // Positioned(
+          //   right: 16,
+          //   bottom: 74,
+          //   child: _MicFab(onTap: () {}),
+          // ),
         ],
       ),
-      floatingActionButton: _CenterFab(onTap: () {}),
+      floatingActionButton: _CenterFab(
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const TambahTransaksiScreen(),
+            ),
+          );
+          // Refresh data setelah kembali
+          ref.invalidate(riwayatProvider);
+          ref.invalidate(hutangListProvider);
+          ref.invalidate(piutangListProvider);
+        },
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: _BottomNav(
         currentIndex: _navIndex,
@@ -727,38 +746,38 @@ class _CenterFab extends StatelessWidget {
 
 
 
-class _MicFab extends StatelessWidget {
-  final VoidCallback onTap;
+// class _MicFab extends StatelessWidget {
+//   final VoidCallback onTap;
 
-  const _MicFab({required this.onTap});
+//   const _MicFab({required this.onTap});
 
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withValues(alpha: 0.18),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.mic_rounded,
-          color: AppColors.primary,
-          size: 22,
-        ),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return GestureDetector(
+//       onTap: onTap,
+//       child: Container(
+//         width: 48,
+//         height: 48,
+//         decoration: BoxDecoration(
+//           color: AppColors.surface,
+//           shape: BoxShape.circle,
+//           boxShadow: [
+//             BoxShadow(
+//               color: AppColors.primary.withValues(alpha: 0.18),
+//               blurRadius: 14,
+//               offset: const Offset(0, 4),
+//             ),
+//           ],
+//         ),
+//         child: const Icon(
+//           Icons.mic_rounded,
+//           color: AppColors.primary,
+//           size: 22,
+//         ),
+//       ),
+//     );
+//   }
+// }
 
 
 

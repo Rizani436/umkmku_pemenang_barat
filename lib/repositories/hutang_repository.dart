@@ -77,6 +77,34 @@ class HutangRepository {
     );
     return rows.map(Hutang.fromMap).toList();
   }
+
+  Future<void> update({
+    required String id,
+    required String namaToko,
+    required double nominal,
+    String? keterangan,
+  }) async {
+    final db = await _db.database;
+    await db.update(
+      'hutang',
+      {
+        'nama_toko': namaToko,
+        'nominal': nominal,
+        'keterangan': keterangan,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> hapus(String id) async {
+    final db = await _db.database;
+    await db.delete(
+      'hutang',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }
 
 final hutangRepositoryProvider = Provider<HutangRepository>((ref) {

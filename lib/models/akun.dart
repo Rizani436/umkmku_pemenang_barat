@@ -30,7 +30,7 @@ class Akun {
       'nama_pemilik': namaPemilik,
       'nomor_hp': nomorHP,
 
-      if (pinHash != null) 'pin_hash': pinHash,
+      '?pin_hash': pinHash,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

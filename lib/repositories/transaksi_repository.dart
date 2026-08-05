@@ -88,6 +88,34 @@ class TransaksiRepository {
     );
     return rows.map(Transaksi.fromMap).toList();
   }
+
+  Future<void> update({
+    required String id,
+    required String jenisTransaksi,
+    required String kategori,
+    required double total,
+  }) async {
+    final db = await _db.database;
+    await db.update(
+      'transaksi',
+      {
+        'jenis_transaksi': jenisTransaksi,
+        'kategori': kategori,
+        'total': total,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> hapus(String id) async {
+    final db = await _db.database;
+    await db.delete(
+      'transaksi',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }
 
 final transaksiRepositoryProvider = Provider<TransaksiRepository>((ref) {

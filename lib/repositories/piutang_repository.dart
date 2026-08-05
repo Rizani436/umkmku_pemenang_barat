@@ -79,6 +79,36 @@ class PiutangRepository {
     );
     return rows.map(Piutang.fromMap).toList();
   }
+
+  Future<void> update({
+    required String id,
+    required String namaOrang,
+    required double nominal,
+    String? nomorHP,
+    String? keterangan,
+  }) async {
+    final db = await _db.database;
+    await db.update(
+      'piutang',
+      {
+        'nama_orang': namaOrang,
+        'nominal': nominal,
+        'nomor_hp': nomorHP,
+        'keterangan': keterangan,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<void> hapus(String id) async {
+    final db = await _db.database;
+    await db.delete(
+      'piutang',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
 }
 
 final piutangRepositoryProvider = Provider<PiutangRepository>((ref) {
