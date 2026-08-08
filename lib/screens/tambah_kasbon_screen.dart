@@ -1,12 +1,15 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/usaha_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/riwayat_provider.dart';
 import '../providers/kasbon_provider.dart';
+import '../providers/laporan_provider.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
 import '../theme/app_colors.dart';
+import '../utils/rupiah_formatter.dart';
 
 class TambahKasbonScreen extends ConsumerStatefulWidget {
   final int initialTab;
@@ -132,6 +135,8 @@ class _TambahKasbonScreenState extends ConsumerState<TambahKasbonScreen> {
       ref.invalidate(hutangListProvider);
       ref.invalidate(piutangListProvider);
       ref.invalidate(dashboardSummaryProvider);
+      ref.invalidate(laporanNeracaProvider);
+      ref.invalidate(laporanRugiLabaProvider);
       ref.invalidate(riwayatProvider);
 
       if (!mounted) return;
@@ -352,6 +357,10 @@ class _TambahKasbonScreenState extends ConsumerState<TambahKasbonScreen> {
           TextFormField(
             controller: _nominalController,
             keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              CurrencyInputFormatter(),
+            ],
             style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,

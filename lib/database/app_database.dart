@@ -1,4 +1,4 @@
-import 'package:path/path.dart';
+﻿import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
 
@@ -27,13 +27,29 @@ class AppDatabase {
     final path = join(dbPath, 'umkmku_pemenang_barat.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 4,
       onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
       onConfigure: (db) async {
 
         await db.execute('PRAGMA foreign_keys = ON');
       },
     );
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('ALTER TABLE usaha ADD COLUMN persediaan REAL NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE usaha ADD COLUMN perlengkapan REAL NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE usaha ADD COLUMN mesin_peralatan REAL NOT NULL DEFAULT 0');
+      await db.execute('ALTER TABLE usaha ADD COLUMN gedung REAL NOT NULL DEFAULT 0');
+    }
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE usaha ADD COLUMN modal_awal REAL NOT NULL DEFAULT 0');
+      await db.execute('UPDATE usaha SET modal_awal = kas WHERE modal_awal = 0');
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -52,14 +68,18 @@ class AppDatabase {
 
     await db.execute('''
       CREATE TABLE usaha (
-        id          TEXT PRIMARY KEY,
-        nama_usaha  TEXT NOT NULL,
-        alamat      TEXT,
-        jenis_usaha TEXT NOT NULL,
-        kas         REAL NOT NULL DEFAULT 0,
-        id_akun     TEXT NOT NULL,
-        created_at  TEXT NOT NULL,
-        updated_at  TEXT NOT NULL,
+        id              TEXT PRIMARY KEY,
+        nama_usaha      TEXT NOT NULL,
+        alamat          TEXT,
+        jenis_usaha     TEXT NOT NULL,
+        kas             REAL NOT NULL DEFAULT 0,
+        persediaan      REAL NOT NULL DEFAULT 0,
+        perlengkapan    REAL NOT NULL DEFAULT 0,
+        mesin_peralatan REAL NOT NULL DEFAULT 0,
+        gedung          REAL NOT NULL DEFAULT 0,
+        id_akun         TEXT NOT NULL,
+        created_at      TEXT NOT NULL,
+        updated_at      TEXT NOT NULL,
         FOREIGN KEY (id_akun) REFERENCES akun(id) ON DELETE CASCADE
       )
     ''');

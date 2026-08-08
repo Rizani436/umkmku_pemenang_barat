@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/usaha.dart';
 import '../providers/auth_provider.dart';
@@ -9,13 +9,18 @@ import 'welcome_screen.dart';
 import 'tambah_transaksi_screen.dart';
 import 'riwayat_tab.dart';
 import 'kasbon_tab.dart';
+import 'laporan_tab.dart';
+import 'notifikasi_screen.dart';
+import 'profil_usaha_screen.dart';
+import 'samakan_uang_laci_screen.dart';
 import '../providers/riwayat_provider.dart';
 import '../providers/kasbon_provider.dart';
 
 String _rupiah(double nilai, {bool spasi = false}) {
   if (nilai == 0) return 'Rp${spasi ? ' ' : ''}0';
+  final isNegative = nilai < 0;
   final s = nilai.toInt().abs().toString();
-  final buffer = StringBuffer('Rp${spasi ? ' ' : ''}');
+  final buffer = StringBuffer('${isNegative ? '- ' : ''}Rp${spasi ? ' ' : ''}');
   final offset = s.length % 3;
   for (int i = 0; i < s.length; i++) {
     if (i != 0 && (i - offset) % 3 == 0) buffer.write('.');
@@ -66,7 +71,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           SafeArea(
             child: Column(
               children: [
-                if (_navIndex == 0 || _navIndex == 3)
+                if (_navIndex == 0)
                   _TopBar(
                     namaUsaha: usahaAsync.value?.namaUsaha ?? '...',
                     onLogout: _logout,
@@ -76,6 +81,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     0 => _BerandaTab(usahaAsync: usahaAsync),
                     1 => const RiwayatTab(),
                     2 => const KasbonTab(),
+                    3 => const LaporanTab(),
                     _ => _PlaceholderTab(label: _navLabel(_navIndex)),
                   },
                 ),
@@ -83,11 +89,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             ),
           ),
 
-          // Positioned(
-          //   right: 16,
-          //   bottom: 74,
-          //   child: _MicFab(onTap: () {}),
-          // ),
         ],
       ),
       floatingActionButton: _CenterFab(
@@ -97,7 +98,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               builder: (_) => const TambahTransaksiScreen(),
             ),
           );
-          // Refresh data setelah kembali
           ref.invalidate(riwayatProvider);
           ref.invalidate(hutangListProvider);
           ref.invalidate(piutangListProvider);
@@ -139,7 +139,13 @@ class _BerandaTab extends ConsumerWidget {
             summary: summary,
             isLoading: summaryAsync.isLoading,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
+
+          _SaldoKasCard(
+            nilai: summary.saldoKas,
+            isLoading: summaryAsync.isLoading,
+          ),
+          const SizedBox(height: 12),
 
 
           Row(
@@ -238,33 +244,43 @@ class _BerandaTab extends ConsumerWidget {
 
 
 
-class _FinanceCard extends StatelessWidget {
+class _FinanceCard extends ConsumerWidget {
   final DashboardSummary summary;
   final bool isLoading;
 
   const _FinanceCard({required this.summary, this.isLoading = false});
 
+  bool _isToday(DateTime dt) {
+    final now = DateTime.now();
+    return dt.year == now.year && dt.month == now.month && dt.day == now.day;
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedDate = ref.watch(dashboardDateProvider);
+    final isToday = _isToday(selectedDate);
     final keuntungan = summary.keuntunganHariIni;
     final trend = summary.trend;
-
 
     final (IconData trendIcon, Color trendColor, String trendText) = switch (trend) {
       TrendKeuntungan.naik => (
           Icons.trending_up_rounded,
           const Color(0xFF4EFFA0),
-          'Keuntungan lebih tinggi dari kemarin',
+          isToday
+              ? 'Keuntungan lebih tinggi dari kemarin'
+              : 'Keuntungan lebih tinggi dari hari sebelumnya',
         ),
       TrendKeuntungan.turun => (
           Icons.trending_down_rounded,
           const Color(0xFFFFB3B3),
-          'Keuntungan lebih rendah dari kemarin',
+          isToday
+              ? 'Keuntungan lebih rendah dari kemarin'
+              : 'Keuntungan lebih rendah dari hari sebelumnya',
         ),
       TrendKeuntungan.netral => (
           Icons.trending_flat_rounded,
           const Color(0xFFFFE08A),
-          'Sama seperti kemarin',
+          'Sama seperti hari sebelumnya',
         ),
     };
 
@@ -292,44 +308,134 @@ class _FinanceCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Keuntungan Hari Ini',
-                style: TextStyle(
+              Text(
+                keuntungan < 0
+                    ? (isToday
+                        ? 'Defisit / Rugi Hari Ini'
+                        : 'Defisit / Rugi Tanggal Ini')
+                    : (isToday
+                        ? 'Keuntungan Hari Ini'
+                        : 'Keuntungan Tanggal Ini'),
+                style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              Text(
-                _tanggalIndo(DateTime.now()),
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: selectedDate,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now(),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                            onPrimary: Colors.white,
+                            surface: AppColors.surface,
+                            onSurface: AppColors.textPrimary,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    ref.read(dashboardDateProvider.notifier).setTanggal(picked);
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_rounded,
+                        color: Colors.white,
+                        size: 12,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _tanggalIndo(selectedDate),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        color: Colors.white70,
+                        size: 14,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
-          isLoading
-              ? const SizedBox(
-                  height: 44,
-                  width: 140,
-                  child: LinearProgressIndicator(
-                    color: Colors.white54,
-                    backgroundColor: Colors.white24,
-                    borderRadius: BorderRadius.all(Radius.circular(4)),
-                  ),
-                )
-              : Text(
-                  _rupiah(keuntungan),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: -0.5,
+
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: isLoading
+                    ? const SizedBox(
+                        height: 44,
+                        width: 140,
+                        child: LinearProgressIndicator(
+                          color: Colors.white54,
+                          backgroundColor: Colors.white24,
+                          borderRadius: BorderRadius.all(Radius.circular(4)),
+                        ),
+                      )
+                    : Text(
+                        _rupiah(keuntungan),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 36,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+              ),
+              if (!isToday)
+                GestureDetector(
+                  onTap: () {
+                    ref.read(dashboardDateProvider.notifier).resetToday();
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: const Text(
+                      'Kembali ke Hari Ini',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
+            ],
+          ),
           const SizedBox(height: 14),
+
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -352,6 +458,116 @@ class _FinanceCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SaldoKasCard extends ConsumerWidget {
+  final double nilai;
+  final bool isLoading;
+
+  const _SaldoKasCard({
+    required this.nilai,
+    this.isLoading = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usaha = ref.watch(currentUsahaProvider).value;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: Color(0xFFEBE7FF),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.account_balance_wallet_rounded,
+              color: Color(0xFF5B4FDD),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Saldo Kas Tunai (Laci)',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 100,
+                        child: LinearProgressIndicator(
+                            borderRadius:
+                                BorderRadius.all(Radius.circular(4))),
+                      )
+                    : Text(
+                        _rupiah(nilai, spasi: true),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF212936),
+                        ),
+                      ),
+              ],
+            ),
+          ),
+          if (usaha != null)
+            Material(
+              color: const Color(0xFFF3F0FF),
+              borderRadius: BorderRadius.circular(12),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SamakanUangLaciScreen(
+                        idUsaha: usaha.id,
+                        currentKas: nilai,
+                      ),
+                    ),
+                  );
+                },
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  child: Text(
+                    'Samakan Laci',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF5B4FDD),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -553,7 +769,7 @@ class _JatuhTempoCard extends StatelessWidget {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
+            child: Column(  
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -610,49 +826,22 @@ class _TopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Row(
-        children: [
-
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.person_outline_rounded,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-
-          Expanded(
-            child: Text(
-              namaUsaha,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-
-
-          Stack(
-            children: [
-              Container(
+  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+  child: SizedBox(
+    height: 40,
+    child: Stack(
+      alignment: Alignment.center,
+      children: [
+        Row(
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ProfilUsahaScreen()),
+                );
+              },
+              child: Container(
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
@@ -667,49 +856,80 @@ class _TopBar extends StatelessWidget {
                   ],
                 ),
                 child: const Icon(
-                  Icons.notifications_outlined,
-                  color: AppColors.textPrimary,
+                  Icons.person_outline_rounded,
+                  color: AppColors.primary,
                   size: 20,
                 ),
               ),
-              Positioned(
-                right: 8,
-                top: 8,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Colors.redAccent,
-                    shape: BoxShape.circle,
+            ),
+
+            const Spacer(),
+
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const NotifikasiScreen(),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 8),
-
-
-          GestureDetector(
-            onTap: onLogout,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.redAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Logout',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.redAccent,
-                ),
+                );
+              },
+              child: Stack(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.textPrimary,
+                      size: 20,
+                    ),
+                  ),
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Colors.redAccent,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+          ],
+        ),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 60),
+          child: Text(
+            namaUsaha,
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
           ),
-        ],
-      ),
-    );
+        ),
+      ],
+    ),
+  ),
+);
   }
 }
 
@@ -746,38 +966,8 @@ class _CenterFab extends StatelessWidget {
 
 
 
-// class _MicFab extends StatelessWidget {
-//   final VoidCallback onTap;
 
-//   const _MicFab({required this.onTap});
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return GestureDetector(
-//       onTap: onTap,
-//       child: Container(
-//         width: 48,
-//         height: 48,
-//         decoration: BoxDecoration(
-//           color: AppColors.surface,
-//           shape: BoxShape.circle,
-//           boxShadow: [
-//             BoxShadow(
-//               color: AppColors.primary.withValues(alpha: 0.18),
-//               blurRadius: 14,
-//               offset: const Offset(0, 4),
-//             ),
-//           ],
-//         ),
-//         child: const Icon(
-//           Icons.mic_rounded,
-//           color: AppColors.primary,
-//           size: 22,
-//         ),
-//       ),
-//     );
-//   }
-// }
 
 
 

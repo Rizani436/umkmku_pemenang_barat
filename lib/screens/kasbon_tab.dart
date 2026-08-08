@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
@@ -13,6 +13,20 @@ import 'kirim_tagihan_screen.dart';
 
 const _colorHutang = Color(0xFFFF5A5A);
 const _colorPiutang = Color(0xFFF5A623);
+
+enum JatuhTempoStatus { overdue, dueSoon, normal, none }
+
+class JatuhTempoInfo {
+  final JatuhTempoStatus status;
+  final String label;
+  final Color color;
+
+  const JatuhTempoInfo({
+    required this.status,
+    required this.label,
+    required this.color,
+  });
+}
 
 class KasbonTab extends ConsumerStatefulWidget {
   const KasbonTab({super.key});
@@ -36,6 +50,66 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
     return buf.toString();
   }
 
+  JatuhTempoInfo _getJatuhTempoInfo(DateTime? tglJatuhTempo) {
+    if (tglJatuhTempo == null) {
+      return const JatuhTempoInfo(
+        status: JatuhTempoStatus.none,
+        label: '',
+        color: Colors.transparent,
+      );
+    }
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target =
+        DateTime(tglJatuhTempo.year, tglJatuhTempo.month, tglJatuhTempo.day);
+
+    final diffDays = target.difference(today).inDays;
+
+    if (diffDays < 0) {
+      final absDays = diffDays.abs();
+      return JatuhTempoInfo(
+        status: JatuhTempoStatus.overdue,
+        label: '⚠️ Lewat $absDays hari',
+        color: const Color(0xFFDC2626),
+      );
+    } else if (diffDays == 0) {
+      return const JatuhTempoInfo(
+        status: JatuhTempoStatus.dueSoon,
+        label: '⚡ Jatuh Tempo Hari Ini!',
+        color: Color(0xFFD97706),
+      );
+    } else if (diffDays <= 3) {
+      return JatuhTempoInfo(
+        status: JatuhTempoStatus.dueSoon,
+        label: '⏳ $diffDays hari lagi',
+        color: const Color(0xFFD97706),
+      );
+    } else {
+      const bulanNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des'
+      ];
+      final dateStr =
+          '${target.day} ${bulanNames[target.month - 1]} ${target.year}';
+      return JatuhTempoInfo(
+        status: JatuhTempoStatus.normal,
+        label: 'Tempo: $dateStr',
+        color: const Color(0xFF6B7280),
+      );
+    }
+  }
+
   void _openTambahKasbon(int initialTab) async {
     final res = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -50,10 +124,84 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
     }
   }
 
+  Widget _buildReminderBanner(
+      List<Hutang> hutangList, List<Piutang> piutangList) {
+    int overdueHutang = 0;
+    int dueSoonHutang = 0;
+    int overduePiutang = 0;
+    int dueSoonPiutang = 0;
+
+    for (var h in hutangList) {
+      final info = _getJatuhTempoInfo(h.tglJatuhTempo);
+      if (info.status == JatuhTempoStatus.overdue) overdueHutang++;
+      if (info.status == JatuhTempoStatus.dueSoon) dueSoonHutang++;
+    }
+
+    for (var p in piutangList) {
+      final info = _getJatuhTempoInfo(p.tglJatuhTempo);
+      if (info.status == JatuhTempoStatus.overdue) overduePiutang++;
+      if (info.status == JatuhTempoStatus.dueSoon) dueSoonPiutang++;
+    }
+
+    final totalOverdue = overdueHutang + overduePiutang;
+    final totalDueSoon = dueSoonHutang + dueSoonPiutang;
+
+    if (totalOverdue == 0 && totalDueSoon == 0) return const SizedBox.shrink();
+
+    final isOverdue = totalOverdue > 0;
+    final bg = isOverdue ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB);
+    final border =
+        isOverdue ? const Color(0xFFFCA5A5) : const Color(0xFFFDE68A);
+    final textCol =
+        isOverdue ? const Color(0xFF991B1B) : const Color(0xFF92400E);
+    final icon =
+        isOverdue ? Icons.warning_amber_rounded : Icons.access_time_rounded;
+
+    String textMsg = '';
+    if (isOverdue) {
+      textMsg =
+          'Perhatian: Ada $totalOverdue catatan yang SUDAH LEWAT tanggal jatuh tempo!';
+    } else {
+      textMsg =
+          'Pengingat: Ada $totalDueSoon catatan yang mendekati jatuh tempo dalam waktu dekat.';
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border, width: 1.2),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: textCol, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              textMsg,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.bold,
+                color: textCol,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hutangAsync = ref.watch(hutangListProvider);
     final piutangAsync = ref.watch(piutangListProvider);
+
+    final hutangList = hutangAsync.value ?? [];
+    final piutangList = piutangAsync.value ?? [];
 
     return Column(
       children: [
@@ -76,23 +224,33 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
           ),
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Column(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(hutangListProvider);
+              ref.invalidate(piutangListProvider);
+              ref.invalidate(dashboardSummaryProvider);
+              ref.invalidate(riwayatProvider);
+            },
+            color: AppColors.primary,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
               children: [
+                _buildReminderBanner(hutangList, piutangList),
                 _buildTabSwitcher(),
                 const SizedBox(height: 16),
                 if (_tabIndex == 0)
                   _buildTotalCard(
                     title: 'Total Hutang',
-                    amount: _hitungTotalHutang(hutangAsync.value ?? []),
+                    amount: _hitungTotalHutang(hutangList),
                     color: _colorHutang,
                     isLoading: hutangAsync.isLoading,
                   )
                 else
                   _buildTotalCard(
                     title: 'Total Piutang',
-                    amount: _hitungTotalPiutang(piutangAsync.value ?? []),
+                    amount: _hitungTotalPiutang(piutangList),
                     color: _colorPiutang,
                     isLoading: piutangAsync.isLoading,
                   ),
@@ -103,13 +261,16 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   _buildPiutangList(piutangAsync),
                 const SizedBox(height: 12),
                 _buildDashedAddButton(
-                  label: _tabIndex == 0 ? 'Tambah Hutang Baru' : 'Tambah Piutang Baru',
+                  label: _tabIndex == 0
+                      ? 'Tambah Hutang Baru'
+                      : 'Tambah Piutang Baru',
                   onTap: () => _openTambahKasbon(_tabIndex),
                 ),
                 const SizedBox(height: 24),
               ],
             ),
           ),
+        ),
         ),
       ],
     );
@@ -138,7 +299,8 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: _tabIndex == 0 ? AppColors.primary : Colors.transparent,
+                  color:
+                      _tabIndex == 0 ? AppColors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
@@ -147,7 +309,8 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: _tabIndex == 0 ? Colors.white : AppColors.textPrimary,
+                    color:
+                        _tabIndex == 0 ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -159,7 +322,8 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: _tabIndex == 1 ? AppColors.primary : Colors.transparent,
+                  color:
+                      _tabIndex == 1 ? AppColors.primary : Colors.transparent,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
@@ -168,7 +332,8 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: _tabIndex == 1 ? Colors.white : AppColors.textPrimary,
+                    color:
+                        _tabIndex == 1 ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -255,19 +420,31 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
             ),
           );
         }
+
+        final sortedList = List<Hutang>.from(list);
+        sortedList.sort((a, b) {
+          final infoA = _getJatuhTempoInfo(a.tglJatuhTempo);
+          final infoB = _getJatuhTempoInfo(b.tglJatuhTempo);
+          return infoA.status.index.compareTo(infoB.status.index);
+        });
+
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: list.length,
+          itemCount: sortedList.length,
           separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            final h = list[index];
-            final initial = h.namaToko.isNotEmpty ? h.namaToko[0].toUpperCase() : 'H';
+            final h = sortedList[index];
+            final initial =
+                h.namaToko.isNotEmpty ? h.namaToko[0].toUpperCase() : 'H';
+            final tempoInfo = _getJatuhTempoInfo(h.tglJatuhTempo);
+
             return _buildKasbonItemTile(
               initial: initial,
               title: h.namaToko,
               amount: h.nominal,
               color: _colorHutang,
+              tempoInfo: tempoInfo,
               onTap: () async {
                 final res = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(
@@ -304,20 +481,32 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
             ),
           );
         }
+
+        final sortedList = List<Piutang>.from(list);
+        sortedList.sort((a, b) {
+          final infoA = _getJatuhTempoInfo(a.tglJatuhTempo);
+          final infoB = _getJatuhTempoInfo(b.tglJatuhTempo);
+          return infoA.status.index.compareTo(infoB.status.index);
+        });
+
         return ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: list.length,
+          itemCount: sortedList.length,
           separatorBuilder: (_, _) => const SizedBox(height: 10),
           itemBuilder: (context, index) {
-            final p = list[index];
-            final initial = p.namaOrang.isNotEmpty ? p.namaOrang[0].toUpperCase() : 'P';
+            final p = sortedList[index];
+            final initial =
+                p.namaOrang.isNotEmpty ? p.namaOrang[0].toUpperCase() : 'P';
             final hasPhone = p.nomorHP != null && p.nomorHP!.trim().isNotEmpty;
+            final tempoInfo = _getJatuhTempoInfo(p.tglJatuhTempo);
+
             return _buildKasbonItemTile(
               initial: initial,
               title: p.namaOrang,
               amount: p.nominal,
               color: _colorPiutang,
+              tempoInfo: tempoInfo,
               onTap: () async {
                 final res = await Navigator.of(context).push<bool>(
                   MaterialPageRoute(
@@ -351,6 +540,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
     required String title,
     required double amount,
     required Color color,
+    required JatuhTempoInfo tempoInfo,
     required VoidCallback onTap,
     VoidCallback? onWhatsAppTap,
   }) {
@@ -415,6 +605,29 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                           color: color,
                         ),
                       ),
+                      if (tempoInfo.status != JatuhTempoStatus.none) ...[
+                        const SizedBox(height: 5),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: tempoInfo.color.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: tempoInfo.color.withValues(alpha: 0.3),
+                              width: 0.8,
+                            ),
+                          ),
+                          child: Text(
+                            tempoInfo.label,
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: tempoInfo.color,
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -427,7 +640,8 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                       onTap: onWhatsAppTap,
                       customBorder: const StadiumBorder(),
                       child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -463,29 +677,27 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
     required String label,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: CustomPaint(
-        painter: _DashedBorderPainter(
-          color: const Color(0xFFC8C4EC),
-          strokeWidth: 1.5,
-          gap: 5,
-          dash: 6,
-          radius: 16,
-        ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           width: double.infinity,
-          height: 54,
+          height: 52,
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppColors.primary.withValues(alpha: 0.4),
+              width: 1.5,
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.add_circle_rounded,
-                color: AppColors.textSecondary,
+                Icons.add_rounded,
+                color: AppColors.primary,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -493,7 +705,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                 label,
                 style: const TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.bold,
                   color: AppColors.primary,
                 ),
               ),
@@ -503,49 +715,4 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
       ),
     );
   }
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double gap;
-  final double dash;
-  final double radius;
-
-  _DashedBorderPainter({
-    required this.color,
-    this.strokeWidth = 1.5,
-    this.gap = 5,
-    this.dash = 6,
-    this.radius = 16,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Radius.circular(radius),
-    );
-
-    final path = Path()..addRRect(rrect);
-    final metrics = path.computeMetrics();
-
-    for (final metric in metrics) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final extractPath = metric.extractPath(distance, distance + dash);
-        canvas.drawPath(extractPath, paint);
-        distance += dash + gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) =>
-      color != oldDelegate.color || strokeWidth != oldDelegate.strokeWidth;
 }

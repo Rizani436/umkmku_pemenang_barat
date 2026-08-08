@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../database/database_provider.dart';
@@ -17,19 +17,22 @@ class TransaksiRepository {
   Future<double> getMasukHariIni(String idUsaha) =>
       _sumTanggal(idUsaha, 'pemasukan', DateTime.now());
 
-
   Future<double> getKeluarHariIni(String idUsaha) =>
       _sumTanggal(idUsaha, 'pengeluaran', DateTime.now());
-
 
   Future<double> getMasukKemarin(String idUsaha) =>
       _sumTanggal(idUsaha, 'pemasukan',
           DateTime.now().subtract(const Duration(days: 1)));
 
-
   Future<double> getKeluarKemarin(String idUsaha) =>
       _sumTanggal(idUsaha, 'pengeluaran',
           DateTime.now().subtract(const Duration(days: 1)));
+
+  Future<double> getMasukTanggal(String idUsaha, DateTime date) =>
+      _sumTanggal(idUsaha, 'pemasukan', date);
+
+  Future<double> getKeluarTanggal(String idUsaha, DateTime date) =>
+      _sumTanggal(idUsaha, 'pengeluaran', date);
 
 
   Future<double> _sumTanggal(
@@ -40,14 +43,42 @@ class TransaksiRepository {
     final end = DateTime(tanggal.year, tanggal.month, tanggal.day + 1)
         .toIso8601String();
 
-    final rows = await db.rawQuery(
-      '''
+    const query = '''
       SELECT COALESCE(SUM(total), 0) AS jumlah
       FROM transaksi
       WHERE id_usaha = ? AND jenis_transaksi = ?
         AND tgl >= ? AND tgl < ?
-      ''',
+      ''';
+
+    final rows = await db.rawQuery(
+      query,
       [idUsaha, jenis, start, end],
+    );
+    return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> getTotalPemasukanAll(String idUsaha) async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total), 0) AS jumlah
+      FROM transaksi
+      WHERE id_usaha = ? AND jenis_transaksi = 'pemasukan'
+      ''',
+      [idUsaha],
+    );
+    return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> getTotalPengeluaranAll(String idUsaha) async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total), 0) AS jumlah
+      FROM transaksi
+      WHERE id_usaha = ? AND jenis_transaksi = 'pengeluaran'
+      ''',
+      [idUsaha],
     );
     return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
   }
@@ -115,6 +146,75 @@ class TransaksiRepository {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  Future<double> getSumByPeriode(
+    String idUsaha,
+    String jenis,
+    DateTime start,
+    DateTime end,
+  ) async {
+    final db = await _db.database;
+    const query = '''
+      SELECT COALESCE(SUM(total), 0) AS jumlah
+      FROM transaksi
+      WHERE id_usaha = ? AND jenis_transaksi = ?
+        AND tgl >= ? AND tgl < ?
+      ''';
+
+    final rows = await db.rawQuery(
+      query,
+      [idUsaha, jenis, start.toIso8601String(), end.toIso8601String()],
+    );
+    return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> getSumAllTime(String idUsaha, String jenis) async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total), 0) AS jumlah
+      FROM transaksi
+      WHERE id_usaha = ? AND jenis_transaksi = ?
+      ''',
+      [idUsaha, jenis],
+    );
+    return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> getTotalPengeluaranStokAll(String idUsaha) async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total), 0) AS jumlah
+      FROM transaksi
+      WHERE id_usaha = ? 
+        AND jenis_transaksi = 'pengeluaran'
+        AND (
+          LOWER(kategori) LIKE '%stok%' OR 
+          LOWER(kategori) LIKE '%kulakan%' OR 
+          LOWER(kategori) LIKE '%bahan%' OR 
+          LOWER(kategori) LIKE '%kemasan%'
+        )
+      ''',
+      [idUsaha],
+    );
+    return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
+  }
+
+  Future<double> getTotalPemasukanPenjualanAll(String idUsaha) async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total), 0) AS jumlah
+      FROM transaksi
+      WHERE id_usaha = ? 
+        AND jenis_transaksi = 'pemasukan'
+        AND LOWER(kategori) NOT LIKE '%pendapatan lain%'
+      ''',
+      [idUsaha],
+    );
+    return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
   }
 }
 

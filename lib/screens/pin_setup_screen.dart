@@ -1,14 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
-import 'modal_kas_screen.dart';
+import 'dashboard_screen.dart';
 
 enum _PinStep { buat, konfirmasi }
-
-
-
 
 class PinSetupScreen extends ConsumerStatefulWidget {
   final String namaPemilik;
@@ -70,7 +67,6 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
       return;
     }
 
-
     if (_inputSaatIni != _pinAwal) {
       setState(() => _errorMessage = 'PIN tidak cocok, coba lagi');
       await Future.delayed(const Duration(milliseconds: 400));
@@ -97,9 +93,13 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
 
     if (authState.hasError || authState.value == null) {
       if (!mounted) return;
+      final error = authState.error;
+      final errorMsg = error != null
+          ? error.toString().replaceAll('Exception: ', '')
+          : 'Gagal membuat akun, coba lagi';
       setState(() {
         _isSubmitting = false;
-        _errorMessage = 'Gagal membuat akun, coba lagi';
+        _errorMessage = errorMsg;
         _step = _PinStep.buat;
         _pinAwal = '';
         _inputSaatIni = '';
@@ -109,7 +109,7 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
 
     final akun = authState.value!;
 
-    final usaha = await ref
+    await ref
         .read(usahaRepositoryProvider)
         .buatUsaha(
           namaUsaha: widget.namaUsaha,
@@ -119,16 +119,9 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
 
     if (!mounted) return;
 
-
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(
-        builder: (_) => ModalKasScreen(
-          namaUsaha: widget.namaUsaha,
-          idUsaha: usaha.id,
-          onSelesai: (_) {
-
-          },
-        ),
+        builder: (_) => const DashboardScreen(),
       ),
       (route) => route.isFirst,
     );
@@ -215,7 +208,7 @@ class _PinSetupScreenState extends ConsumerState<PinSetupScreen> {
       padding: const EdgeInsets.all(6),
       child: ClipOval(
         child: Image.asset(
-          'lib/assets/images/logo_profesor_berdampak.png',
+          'lib/assets/images/logo_aplikasi.png',
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => const Icon(
             Icons.school_outlined,

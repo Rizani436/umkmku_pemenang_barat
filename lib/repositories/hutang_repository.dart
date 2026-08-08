@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../database/database_provider.dart';
@@ -83,15 +83,21 @@ class HutangRepository {
     required String namaToko,
     required double nominal,
     String? keterangan,
+    DateTime? tglJatuhTempo,
+    bool updateJatuhTempo = false,
   }) async {
     final db = await _db.database;
+    final Map<String, dynamic> data = {
+      'nama_toko': namaToko,
+      'nominal': nominal,
+      'keterangan': keterangan,
+    };
+    if (updateJatuhTempo) {
+      data['tgl_jatuh_tempo'] = tglJatuhTempo?.toIso8601String();
+    }
     await db.update(
       'hutang',
-      {
-        'nama_toko': namaToko,
-        'nominal': nominal,
-        'keterangan': keterangan,
-      },
+      data,
       where: 'id = ?',
       whereArgs: [id],
     );

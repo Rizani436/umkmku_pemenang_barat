@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
@@ -185,7 +185,7 @@ class _PinMasukScreenState extends ConsumerState<PinMasukScreen> {
       padding: const EdgeInsets.all(4),
       child: ClipOval(
         child: Image.asset(
-          'lib/assets/images/logo_profesor_berdampak.png',
+          'lib/assets/images/logo_aplikasi.png',
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) => const Icon(
             Icons.storefront_outlined,

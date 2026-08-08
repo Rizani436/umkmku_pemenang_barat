@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../database/database_provider.dart';
@@ -18,6 +18,9 @@ class UsahaRepository {
     required String jenisUsaha,
     required String idAkun,
     double kas = 0,
+    double persediaan = 0,
+    double mesinPeralatan = 0,
+    double gedung = 0,
     String? alamat,
   }) async {
     final db = await _db.database;
@@ -29,6 +32,9 @@ class UsahaRepository {
       alamat: alamat,
       jenisUsaha: jenisUsaha,
       kas: kas,
+      persediaan: persediaan,
+      mesinPeralatan: mesinPeralatan,
+      gedung: gedung,
       idAkun: idAkun,
       createdAt: now,
       updatedAt: now,
@@ -39,8 +45,6 @@ class UsahaRepository {
     return usaha;
   }
 
-
-
   Future<void> updateKas({
     required String idUsaha,
     required double kas,
@@ -49,6 +53,34 @@ class UsahaRepository {
     await db.update(
       'usaha',
       {'kas': kas, 'updated_at': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [idUsaha],
+    );
+  }
+
+  Future<void> updateUsaha({
+    required String idUsaha,
+    required String namaUsaha,
+    required String jenisUsaha,
+    String? alamat,
+    double? persediaan,
+    double? mesinPeralatan,
+    double? gedung,
+  }) async {
+    final db = await _db.database;
+    final Map<String, dynamic> data = {
+      'nama_usaha': namaUsaha,
+      'jenis_usaha': jenisUsaha,
+      'alamat': alamat,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (persediaan != null) data['persediaan'] = persediaan;
+    if (mesinPeralatan != null) data['mesin_peralatan'] = mesinPeralatan;
+    if (gedung != null) data['gedung'] = gedung;
+
+    await db.update(
+      'usaha',
+      data,
       where: 'id = ?',
       whereArgs: [idUsaha],
     );

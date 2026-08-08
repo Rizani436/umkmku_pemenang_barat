@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
 import '../repositories/transaksi_repository.dart';
@@ -61,6 +61,7 @@ class DashboardSummary {
   final double keuntunganKemarin;
   final double totalPiutang;
   final double totalHutang;
+  final double saldoKas;
   final List<JatuhTempoItem> jatuhTempoTerdekat;
 
   const DashboardSummary({
@@ -70,9 +71,9 @@ class DashboardSummary {
     required this.keuntunganKemarin,
     required this.totalPiutang,
     required this.totalHutang,
+    required this.saldoKas,
     required this.jatuhTempoTerdekat,
   });
-
 
   TrendKeuntungan get trend {
     if (keuntunganHariIni > keuntunganKemarin) return TrendKeuntungan.naik;
@@ -87,32 +88,56 @@ class DashboardSummary {
     keuntunganKemarin: 0,
     totalPiutang: 0,
     totalHutang: 0,
+    saldoKas: 0,
     jatuhTempoTerdekat: [],
   );
 }
 
 
+class DashboardDateNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
 
+  void setTanggal(DateTime target) {
+    state = DateTime(target.year, target.month, target.day);
+  }
 
+  void resetToday() {
+    final now = DateTime.now();
+    state = DateTime(now.year, now.month, now.day);
+  }
+}
+
+final dashboardDateProvider =
+    NotifierProvider<DashboardDateNotifier, DateTime>(
+  DashboardDateNotifier.new,
+);
 
 final dashboardSummaryProvider = FutureProvider<DashboardSummary>((ref) async {
   final usahaAsync = ref.watch(currentUsahaProvider);
   final usaha = usahaAsync.value;
   if (usaha == null) return DashboardSummary.kosong;
 
+  final selectedDate = ref.watch(dashboardDateProvider);
+  final previousDate = selectedDate.subtract(const Duration(days: 1));
+
   final idUsaha = usaha.id;
   final transaksiRepo = ref.read(transaksiRepositoryProvider);
   final hutangRepo = ref.read(hutangRepositoryProvider);
   final piutangRepo = ref.read(piutangRepositoryProvider);
 
-
   final results = await Future.wait([
-    transaksiRepo.getMasukHariIni(idUsaha),
-    transaksiRepo.getKeluarHariIni(idUsaha),
-    transaksiRepo.getMasukKemarin(idUsaha),
-    transaksiRepo.getKeluarKemarin(idUsaha),
+    transaksiRepo.getMasukTanggal(idUsaha, selectedDate),
+    transaksiRepo.getKeluarTanggal(idUsaha, selectedDate),
+    transaksiRepo.getMasukTanggal(idUsaha, previousDate),
+    transaksiRepo.getKeluarTanggal(idUsaha, previousDate),
     piutangRepo.getTotalPiutang(idUsaha),
     hutangRepo.getTotalHutang(idUsaha),
+    transaksiRepo.getTotalPemasukanAll(idUsaha),
+    transaksiRepo.getTotalPengeluaranAll(idUsaha),
   ]);
 
   final masukHariIni = results[0];
@@ -121,7 +146,11 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary>((ref) async {
   final keluarKemarin = results[3];
   final totalPiutang = results[4];
   final totalHutang = results[5];
+  final totalPemasukanAll = results[6];
+  final totalPengeluaranAll = results[7];
 
+  final saldoKasCalc = usaha.kas + totalPemasukanAll - totalPengeluaranAll;
+  final saldoKas = saldoKasCalc < 0 ? 0.0 : saldoKasCalc;
 
   final hutangList = await hutangRepo.getJatuhTempoTerdekat(idUsaha, limit: 5);
   final piutangList =
@@ -155,6 +184,7 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary>((ref) async {
     keuntunganKemarin: masukKemarin - keluarKemarin,
     totalPiutang: totalPiutang,
     totalHutang: totalHutang,
+    saldoKas: saldoKas,
     jatuhTempoTerdekat: jatuhTempo.take(5).toList(),
   );
 });

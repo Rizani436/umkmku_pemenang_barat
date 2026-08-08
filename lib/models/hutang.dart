@@ -1,4 +1,4 @@
-
+﻿
 class Hutang {
   final String id;
   final String namaToko;

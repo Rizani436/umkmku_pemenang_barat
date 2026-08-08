@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/transaksi.dart';
 import '../models/hutang.dart';
@@ -74,6 +74,8 @@ String _labelGrup(DateTime tgl) {
 
 enum _Filter { semua, pemasukan, pengeluaran, hutang, piutang }
 
+enum _UrutanTanggal { terbaru, terlama }
+
 class RiwayatTab extends ConsumerStatefulWidget {
   const RiwayatTab({super.key});
 
@@ -83,6 +85,16 @@ class RiwayatTab extends ConsumerStatefulWidget {
 
 class _RiwayatTabState extends ConsumerState<RiwayatTab> {
   _Filter _filter = _Filter.semua;
+  _UrutanTanggal _urutan = _UrutanTanggal.terbaru;
+  DateTimeRange? _filterDateRange;
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   List<RiwayatItemModel> _buildItems(
     List<Transaksi> transaksis,
@@ -130,7 +142,6 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
       ));
     }
 
-    items.sort((a, b) => b.tanggal.compareTo(a.tanggal));
     return items;
   }
 
@@ -157,7 +168,7 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
       piutangAsync.value ?? [],
     );
 
-    final filtered = semuaItem.where((item) {
+    var filtered = semuaItem.where((item) {
       switch (_filter) {
         case _Filter.pemasukan:   return item.tipe == TipeRiwayat.pemasukan;
         case _Filter.pengeluaran: return item.tipe == TipeRiwayat.pengeluaran;
@@ -167,41 +178,118 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
       }
     }).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+    if (_filterDateRange != null) {
+      final start = DateTime(
+          _filterDateRange!.start.year,
+          _filterDateRange!.start.month,
+          _filterDateRange!.start.day);
+      final end = DateTime(
+          _filterDateRange!.end.year,
+          _filterDateRange!.end.month,
+          _filterDateRange!.end.day,
+          23,
+          59,
+          59);
+      filtered = filtered
+          .where((item) =>
+              item.tanggal.isAfter(start.subtract(const Duration(seconds: 1))) &&
+              item.tanggal.isBefore(end.add(const Duration(seconds: 1))))
+          .toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((item) {
+        final namaMatch = item.nama.toLowerCase().contains(q);
+        final ketMatch = item.keterangan?.toLowerCase().contains(q) ?? false;
+        final nominalMatch = item.nominal.toInt().toString().contains(q) ||
+            _rupiah(item.nominal).toLowerCase().contains(q);
+        return namaMatch || ketMatch || nominalMatch;
+      }).toList();
+    }
+
+    if (_urutan == _UrutanTanggal.terbaru) {
+      filtered.sort((a, b) => b.tanggal.compareTo(a.tanggal));
+    } else {
+      filtered.sort((a, b) => a.tanggal.compareTo(b.tanggal));
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(riwayatProvider);
+        ref.invalidate(riwayatHutangProvider);
+        ref.invalidate(riwayatPiutangProvider);
+      },
+      color: AppColors.primary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 6, 8, 0),
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
           child: Row(
             children: [
               const Expanded(
                 child: Text(
                   'Riwayat Transaksi',
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: AppColors.primary,
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: () {
-                  ref.invalidate(riwayatProvider);
-                  ref.invalidate(riwayatHutangProvider);
-                  ref.invalidate(riwayatPiutangProvider);
-                },
-                icon: const Icon(Icons.refresh_rounded,
-                    color: AppColors.textSecondary, size: 22),
+                
               ),
             ],
           ),
         ),
 
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (val) => setState(() => _searchQuery = val.trim()),
+              style: const TextStyle(fontSize: 13.5, color: AppColors.textPrimary),
+              decoration: InputDecoration(
+                hintText: 'Cari transaksi, barang, atau nama...',
+                hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)),
+                prefixIcon: const Icon(Icons.search_rounded, color: AppColors.primary, size: 20),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF9CA3AF)),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              ),
+            ),
+          ),
+        ),
+
         SizedBox(
-          height: 44,
+          height: 40,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             children: [
               _FilterChip(
                 label: 'Semua',
@@ -239,12 +327,183 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
             ],
           ),
         ),
+
+        const SizedBox(height: 12),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Text(
+                '${filtered.length} Transaksi',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const Spacer(),
+
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    _urutan = _urutan == _UrutanTanggal.terbaru
+                        ? _UrutanTanggal.terlama
+                        : _UrutanTanggal.terbaru;
+                  });
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _urutan == _UrutanTanggal.terbaru
+                            ? Icons.arrow_downward_rounded
+                            : Icons.arrow_upward_rounded,
+                        size: 14,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _urutan == _UrutanTanggal.terbaru
+                            ? 'Terbaru'
+                            : 'Terlama',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
+              InkWell(
+                onTap: () async {
+                  final now = DateTime.now();
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime(now.year + 2),
+                    initialDateRange: _filterDateRange,
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: const ColorScheme.light(
+                            primary: AppColors.primary,
+                            onPrimary: Colors.white,
+                            surface: AppColors.surface,
+                            onSurface: AppColors.textPrimary,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() => _filterDateRange = picked);
+                  }
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: _filterDateRange != null
+                        ? AppColors.primary.withValues(alpha: 0.12)
+                        : AppColors.surface,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _filterDateRange != null
+                          ? AppColors.primary
+                          : const Color(0xFFE5E7EB),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.date_range_rounded,
+                        size: 14,
+                        color: _filterDateRange != null
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _filterDateRange != null ? 'Filtered' : 'Tanggal',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _filterDateRange != null
+                              ? AppColors.primary
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        if (_filterDateRange != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.event_rounded,
+                          size: 14, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_filterDateRange!.start.day}/${_filterDateRange!.start.month}/${_filterDateRange!.start.year} - ${_filterDateRange!.end.day}/${_filterDateRange!.end.month}/${_filterDateRange!.end.year}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: () => setState(() => _filterDateRange = null),
+                        child: const Icon(Icons.close_rounded,
+                            size: 16, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
         const SizedBox(height: 10),
 
         Expanded(
           child: filtered.isEmpty ? _buildEmpty() : _buildList(filtered),
         ),
       ],
+    ),
     );
   }
 
@@ -255,6 +514,7 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
     }
 
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       itemCount: grouped.length,
       itemBuilder: (context, gi) {
@@ -314,34 +574,40 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
       _Filter.piutang     => 'piutang',
       _Filter.semua       => null,
     };
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.history_rounded, size: 40, color: AppColors.primary),
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 60),
+      children: [
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.history_rounded, size: 40, color: AppColors.primary),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Belum ada data',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label == null
+                    ? 'Mulai catat transaksi, hutang, atau piutang'
+                    : 'Tidak ada data $label',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Belum ada data',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label == null
-                ? 'Mulai catat transaksi, hutang, atau piutang'
-                : 'Tidak ada data $label',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

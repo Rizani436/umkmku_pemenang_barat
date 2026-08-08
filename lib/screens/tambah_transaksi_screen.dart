@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/kategori_transaksi.dart';
 import '../providers/usaha_provider.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/laporan_provider.dart';
 import '../repositories/transaksi_repository.dart';
 import '../theme/app_colors.dart';
 import 'transaksi_sukses_screen.dart';
@@ -146,6 +147,7 @@ class _TambahTransaksiScreenState
             );
         ref.invalidate(dashboardSummaryProvider);
         ref.invalidate(riwayatProvider);
+        ref.invalidate(laporanNeracaProvider);
         if (!mounted) return;
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -163,6 +165,7 @@ class _TambahTransaksiScreenState
             );
 
         ref.invalidate(dashboardSummaryProvider);
+        ref.invalidate(laporanNeracaProvider);
 
         if (!mounted) return;
         Navigator.of(context).pushReplacement(

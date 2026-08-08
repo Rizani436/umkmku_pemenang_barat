@@ -1,5 +1,4 @@
-
-class Akun {
+﻿class Akun {
   final String id;
   final String namaPemilik;
   final String nomorHP;
@@ -25,14 +24,16 @@ class Akun {
   }
 
   Map<String, dynamic> toMap({String? pinHash}) {
-    return {
+    final map = <String, dynamic>{
       'id': id,
       'nama_pemilik': namaPemilik,
       'nomor_hp': nomorHP,
-
-      '?pin_hash': pinHash,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };
+    if (pinHash != null) {
+      map['pin_hash'] = pinHash;
+    }
+    return map;
   }
 }

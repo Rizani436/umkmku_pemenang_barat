@@ -1,13 +1,19 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
 import '../providers/kasbon_provider.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/laporan_provider.dart';
 import '../providers/riwayat_provider.dart';
+import '../providers/usaha_provider.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
+import '../repositories/transaksi_repository.dart';
 import '../theme/app_colors.dart';
+import '../utils/rupiah_formatter.dart';
+import 'edit_kasbon_screen.dart';
 
 class DetailKasbonScreen extends ConsumerStatefulWidget {
   final Hutang? hutang;
@@ -127,6 +133,214 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
     }
   }
 
+  Future<void> _bukaDialogCicil() async {
+    final sisaPiutang = _nominal;
+    final cicilCtrl = TextEditingController();
+
+    final nominalCicilan = await showDialog<double>(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final inputClean = cicilCtrl.text.replaceAll(RegExp(r'[^0-9]'), '');
+            final inputVal = double.tryParse(inputClean) ?? 0;
+            final sisaSetelahCicil = (sisaPiutang - inputVal).clamp(0, double.infinity).toDouble();
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF3DC),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.payments_outlined, color: Color(0xFFF5A623)),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(_isPiutang ? 'Cicil Piutang' : 'Cicil Hutang',
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                ],
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Nama: $_nama', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 4),
+                    Text('Sisa Saat Ini: ${_formatRupiah(sisaPiutang)}',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                    const SizedBox(height: 16),
+                    const Text('Nominal Pembayaran / Cicilan:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: cicilCtrl,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        CurrencyInputFormatter(),
+                      ],
+                      autofocus: true,
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        prefixText: 'Rp ',
+                        hintText: '0',
+                        filled: true,
+                        fillColor: const Color(0xFFF8F7FD),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFE5E0FF)),
+                        ),
+                      ),
+                      onChanged: (_) => setModalState(() {}),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: inputVal >= sisaPiutang
+                            ? const Color(0xFFE6F9F0)
+                            : const Color(0xFFF0EFFF),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            inputVal >= sisaPiutang
+                                ? Icons.check_circle_rounded
+                                : Icons.info_outline_rounded,
+                            size: 18,
+                            color: inputVal >= sisaPiutang
+                                ? const Color(0xFF1DB57A)
+                                : AppColors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              inputVal >= sisaPiutang
+                                  ? 'Akan LUNAS sepenuhnya!'
+                                  : 'Sisa setelah cicil: ${_formatRupiah(sisaSetelahCicil)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: inputVal >= sisaPiutang
+                                    ? const Color(0xFF1DB57A)
+                                    : AppColors.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  child: const Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: (inputVal <= 0) ? null : () => Navigator.pop(ctx, inputVal),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1DB57A),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  child: const Text('Simpan Cicilan'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (nominalCicilan == null || nominalCicilan <= 0) return;
+
+    try {
+      final usaha = ref.read(currentUsahaProvider).value;
+      if (usaha != null) {
+        final nominalBayar = (nominalCicilan >= sisaPiutang) ? sisaPiutang : nominalCicilan;
+        if (!_isPiutang) {
+          final ketLabel = nominalCicilan >= sisaPiutang ? 'Pelunasan Hutang' : 'Cicilan Hutang';
+          await ref.read(transaksiRepositoryProvider).tambah(
+                idUsaha: usaha.id,
+                jenisTransaksi: 'pengeluaran',
+                kategori: '$ketLabel ($_nama)',
+                total: nominalBayar,
+              );
+        } else {
+          final ketLabel = nominalCicilan >= sisaPiutang ? 'Pelunasan Piutang' : 'Cicilan Piutang';
+          await ref.read(transaksiRepositoryProvider).tambah(
+                idUsaha: usaha.id,
+                jenisTransaksi: 'pemasukan',
+                kategori: '$ketLabel ($_nama)',
+                total: nominalBayar,
+              );
+        }
+      }
+
+      if (nominalCicilan >= sisaPiutang) {
+        if (_isPiutang) {
+          await ref.read(piutangRepositoryProvider).hapus(widget.piutang!.id);
+        } else {
+          await ref.read(hutangRepositoryProvider).hapus(widget.hutang!.id);
+        }
+      } else {
+        final sisaBaru = sisaPiutang - nominalCicilan;
+        if (_isPiutang) {
+          await ref.read(piutangRepositoryProvider).update(
+                id: widget.piutang!.id,
+                namaOrang: widget.piutang!.namaOrang,
+                nominal: sisaBaru,
+                nomorHP: widget.piutang!.nomorHP,
+                keterangan: widget.piutang!.keterangan,
+                tglJatuhTempo: widget.piutang!.tglJatuhTempo,
+              );
+        } else {
+          await ref.read(hutangRepositoryProvider).update(
+                id: widget.hutang!.id,
+                namaToko: widget.hutang!.namaToko,
+                nominal: sisaBaru,
+                keterangan: widget.hutang!.keterangan,
+                tglJatuhTempo: widget.hutang!.tglJatuhTempo,
+              );
+        }
+      }
+
+      ref.invalidate(hutangListProvider);
+      ref.invalidate(piutangListProvider);
+      ref.invalidate(dashboardSummaryProvider);
+      ref.invalidate(laporanNeracaProvider);
+      ref.invalidate(laporanRugiLabaProvider);
+      ref.invalidate(riwayatProvider);
+
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+
+      final msg = nominalCicilan >= sisaPiutang
+          ? '$_title atas nama "$_nama" berhasil LUNAS! 🎉'
+          : 'Cicilan ${_formatRupiah(nominalCicilan)} berhasil dicatat! Sisa: ${_formatRupiah(sisaPiutang - nominalCicilan)}';
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          backgroundColor: const Color(0xFF1DB57A),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal mencatat cicilan: $e')),
+      );
+    }
+  }
+
   Future<void> _tandaiLunas() async {
     final setuju = await showDialog<bool>(
       context: context,
@@ -156,6 +370,25 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
     if (setuju != true) return;
 
     try {
+      final usaha = ref.read(currentUsahaProvider).value;
+      if (usaha != null) {
+        if (!_isPiutang) {
+          await ref.read(transaksiRepositoryProvider).tambah(
+                idUsaha: usaha.id,
+                jenisTransaksi: 'pengeluaran',
+                kategori: 'Pelunasan Hutang ($_nama)',
+                total: _nominal,
+              );
+        } else {
+          await ref.read(transaksiRepositoryProvider).tambah(
+                idUsaha: usaha.id,
+                jenisTransaksi: 'pemasukan',
+                kategori: 'Pelunasan Piutang ($_nama)',
+                total: _nominal,
+              );
+        }
+      }
+
       if (_isPiutang) {
         await ref.read(piutangRepositoryProvider).hapus(widget.piutang!.id);
       } else {
@@ -165,6 +398,8 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
       ref.invalidate(hutangListProvider);
       ref.invalidate(piutangListProvider);
       ref.invalidate(dashboardSummaryProvider);
+      ref.invalidate(laporanNeracaProvider);
+      ref.invalidate(laporanRugiLabaProvider);
       ref.invalidate(riwayatProvider);
 
       if (!mounted) return;
@@ -236,10 +471,29 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 48),
+          IconButton(
+            onPressed: _bukaEdit,
+            icon: const Icon(Icons.edit_rounded, size: 22),
+            color: AppColors.primary,
+            tooltip: 'Edit Data',
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _bukaEdit() async {
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => EditKasbonScreen(
+          hutang: widget.hutang,
+          piutang: widget.piutang,
+        ),
+      ),
+    );
+    if (result == true && mounted) {
+      Navigator.of(context).pop(true);
+    }
   }
 
   Widget _buildTopSummaryCard() {
@@ -434,7 +688,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
               onTap: _konfirmasiHapus,
               borderRadius: BorderRadius.circular(16),
               child: Container(
-                width: 54,
+                width: 46,
                 height: 52,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
@@ -451,27 +705,81 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
+
+          Material(
+            color: const Color(0xFFEBE7FF),
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: _bukaEdit,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: 46,
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color(0xFFC7BDFF),
+                    width: 1,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.edit_outlined,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
 
           Expanded(
             child: SizedBox(
               height: 52,
-              child: ElevatedButton(
-                onPressed: _tandaiLunas,
+              child: ElevatedButton.icon(
+                onPressed: _bukaDialogCicil,
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: const Text(
+                  'Cicil',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1DB57A),
+                  backgroundColor: const Color(0xFFF5A623),
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: EdgeInsets.zero,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          Expanded(
+            child: SizedBox(
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: _tandaiLunas,
+                icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                label: const Text(
                   'Lunas',
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 0.3,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1DB57A),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: EdgeInsets.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),

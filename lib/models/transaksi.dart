@@ -1,4 +1,4 @@
-
+﻿
 class Transaksi {
   final String id;
   final String jenisTransaksi;

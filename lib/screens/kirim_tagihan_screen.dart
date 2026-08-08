@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/piutang.dart';
@@ -48,7 +48,28 @@ class _KirimTagihanScreenState extends ConsumerState<KirimTagihanScreen> {
         ? ' (${widget.piutang.keterangan})'
         : '';
 
-    return 'Halo ${widget.piutang.namaOrang}, ini dari $namaUsaha. Mengingatkan ada nota kasbon$keteranganText yang belum diselesaikan sebesar $nominalStr. Terima kasih.';
+    String tempoText = '';
+    if (widget.piutang.tglJatuhTempo != null) {
+      final dt = widget.piutang.tglJatuhTempo!;
+      const bulanNames = [
+        'Januari',
+        'Februari',
+        'Maret',
+        'April',
+        'Mei',
+        'Juni',
+        'Juli',
+        'Agustus',
+        'September',
+        'Oktober',
+        'November',
+        'Desember'
+      ];
+      tempoText =
+          ' (Jatuh Tempo: ${dt.day} ${bulanNames[dt.month - 1]} ${dt.year})';
+    }
+
+    return 'Halo ${widget.piutang.namaOrang}, ini dari $namaUsaha. Mengingatkan ada nota kasbon$keteranganText sebesar $nominalStr$tempoText yang belum diselesaikan. Terima kasih.';
   }
 
   Future<String?> _showInputPhoneDialog() async {

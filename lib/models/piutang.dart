@@ -1,4 +1,4 @@
-
+﻿
 class Piutang {
   final String id;
   final String namaOrang;

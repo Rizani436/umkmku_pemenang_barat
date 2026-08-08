@@ -1,4 +1,4 @@
-import 'package:bcrypt/bcrypt.dart';
+﻿import 'package:bcrypt/bcrypt.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
@@ -85,9 +85,47 @@ class AuthRepository {
 
   Future<Akun?> getById(String id) async {
     final db = await _db.database;
-    final rows = await db.query('akun', where: 'id = ?', whereArgs: [id]);
+    final rows = await db.query(
+      'akun',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
     if (rows.isEmpty) return null;
     return Akun.fromMap(rows.first);
+  }
+
+  Future<void> updateAkun({
+    required String idAkun,
+    required String namaPemilik,
+    required String nomorHP,
+  }) async {
+    final db = await _db.database;
+    await db.update(
+      'akun',
+      {
+        'nama_pemilik': namaPemilik,
+        'nomor_hp': nomorHP,
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [idAkun],
+    );
+  }
+
+  Future<void> updatePin({
+    required String idAkun,
+    required String pinBaru,
+  }) async {
+    final db = await _db.database;
+    await db.update(
+      'akun',
+      {
+        'pin_hash': _hashPin(pinBaru),
+        'updated_at': DateTime.now().toIso8601String(),
+      },
+      where: 'id = ?',
+      whereArgs: [idAkun],
+    );
   }
 }
 
