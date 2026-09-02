@@ -64,15 +64,17 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
       final transaksiList = await db.query('transaksi');
       final hutangList = await db.query('hutang');
       final piutangList = await db.query('piutang');
+      final pembayaranList = await db.query('pembayaran_kasbon');
 
       final backupMap = {
         'app': 'UMKM-Ku Pemenang Barat',
-        'version': 2,
+        'version': 3,
         'created_at': DateTime.now().toIso8601String(),
         'usaha': usahaList,
         'transaksi': transaksiList,
         'hutang': hutangList,
         'piutang': piutangList,
+        'pembayaran_kasbon': pembayaranList,
       };
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupMap);
@@ -250,6 +252,12 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               .toList() ??
           [];
 
+      // File salinan versi lama (<=2) belum punya kunci ini; anggap kosong.
+      final filteredPembayaran = (backupMap['pembayaran_kasbon'] as List?)
+              ?.where((p) => p['id_usaha'] == selectedUsahaId)
+              .toList() ??
+          [];
+
       final appDb = ref.read(appDatabaseProvider);
       final db = await appDb.database;
 
@@ -269,7 +277,12 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         if (idUsahaMilikAkun.isNotEmpty) {
           final placeholder =
               List.filled(idUsahaMilikAkun.length, '?').join(',');
-          for (final tabel in ['transaksi', 'hutang', 'piutang']) {
+          for (final tabel in [
+            'transaksi',
+            'hutang',
+            'piutang',
+            'pembayaran_kasbon',
+          ]) {
             await txn.delete(
               tabel,
               where: 'id_usaha IN ($placeholder)',
@@ -295,6 +308,10 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         }
         for (final item in filteredPiutang) {
           await txn.insert('piutang', Map<String, dynamic>.from(item));
+        }
+        for (final item in filteredPembayaran) {
+          await txn.insert(
+              'pembayaran_kasbon', Map<String, dynamic>.from(item));
         }
       });
 

@@ -1,7 +1,8 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../database/database_provider.dart';
+import '../models/pembayaran_kasbon.dart';
 import '../models/piutang.dart';
 
 
@@ -17,7 +18,8 @@ class PiutangRepository {
   Future<double> getTotalPiutang(String idUsaha) async {
     final db = await _db.database;
     final rows = await db.rawQuery(
-      'SELECT COALESCE(SUM(nominal), 0) AS jumlah FROM piutang WHERE id_usaha = ?',
+      'SELECT COALESCE(SUM(nominal), 0) AS jumlah FROM piutang '
+      "WHERE id_usaha = ? AND status = '${StatusKasbon.aktif}'",
       [idUsaha],
     );
     return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
@@ -41,8 +43,8 @@ class PiutangRepository {
 
     final rows = await db.query(
       'piutang',
-      where: 'id_usaha = ? AND tgl_jatuh_tempo IS NOT NULL '
-          'AND tgl_jatuh_tempo >= ?',
+      where: "id_usaha = ? AND status = '${StatusKasbon.aktif}' "
+          'AND tgl_jatuh_tempo IS NOT NULL AND tgl_jatuh_tempo >= ?',
       whereArgs: [idUsaha, batasBawah],
       orderBy: 'tgl_jatuh_tempo ASC',
       limit: limit,
@@ -82,7 +84,7 @@ class PiutangRepository {
     final db = await _db.database;
     final rows = await db.query(
       'piutang',
-      where: 'id_usaha = ?',
+      where: "id_usaha = ? AND status = '${StatusKasbon.aktif}'",
       whereArgs: [idUsaha],
       orderBy: 'created_at DESC',
     );
@@ -114,6 +116,49 @@ class PiutangRepository {
       where: 'id = ?',
       whereArgs: [id],
     );
+  }
+
+  /// Mencatat pembayaran: sisa berkurang, dan bila habis kasbon ditandai
+  /// LUNAS — bukan dihapus seperti sebelumnya, supaya jejaknya tetap ada.
+  Future<void> bayar({
+    required String id,
+    required double sisaBaru,
+  }) async {
+    final db = await _db.database;
+    await db.update(
+      'piutang',
+      {
+        'nominal': sisaBaru < 0 ? 0 : sisaBaru,
+        'status':
+            sisaBaru <= 0 ? StatusKasbon.lunas : StatusKasbon.aktif,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  /// Termasuk yang sudah lunas — dipakai laporan dan layar riwayat.
+  Future<List<Piutang>> getSemuaByUsaha(String idUsaha) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'piutang',
+      where: 'id_usaha = ?',
+      whereArgs: [idUsaha],
+      orderBy: 'created_at DESC',
+    );
+    return rows.map(Piutang.fromMap).toList();
+  }
+
+  Future<Piutang?> getById(String id) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'piutang',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return Piutang.fromMap(rows.first);
   }
 
   Future<void> hapus(String id) async {

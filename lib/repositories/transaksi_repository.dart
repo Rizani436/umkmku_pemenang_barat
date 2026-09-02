@@ -1,7 +1,8 @@
-﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../database/app_database.dart';
 import '../database/database_provider.dart';
+import '../models/tipe_akun.dart';
 import '../models/transaksi.dart';
 
 
@@ -91,6 +92,7 @@ class TransaksiRepository {
     required String kategori,
     required double total,
     DateTime? tgl,
+    String? tipeAkun,
   }) async {
     final db = await _db.database;
     final now = DateTime.now();
@@ -98,6 +100,11 @@ class TransaksiRepository {
       id: _uuid.v4(),
       jenisTransaksi: jenisTransaksi,
       kategori: kategori,
+      tipeAkun: tipeAkun ??
+          TipeAkun.dariKategori(
+            jenisTransaksi: jenisTransaksi,
+            kategori: kategori,
+          ),
       total: total,
       tgl: tgl ?? now,
       createdAt: now,
@@ -132,6 +139,11 @@ class TransaksiRepository {
       {
         'jenis_transaksi': jenisTransaksi,
         'kategori': kategori,
+        // Kategori berubah berarti jenis akunnya bisa ikut berubah.
+        'tipe_akun': TipeAkun.dariKategori(
+          jenisTransaksi: jenisTransaksi,
+          kategori: kategori,
+        ),
         'total': total,
       },
       where: 'id = ?',
@@ -182,40 +194,46 @@ class TransaksiRepository {
     return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
   }
 
-  Future<double> getTotalPengeluaranStokAll(String idUsaha) async {
+  /// Total per jenis akun sepanjang waktu. Menggantikan pencocokan teks
+  /// kategori (`LIKE '%stok%'`) yang dulu ikut menangkap nama toko/pelanggan
+  /// yang kebetulan mengandung kata itu.
+  Future<double> getSumTipeAkunAllTime(String idUsaha, String tipeAkun) async {
     final db = await _db.database;
     final rows = await db.rawQuery(
       '''
       SELECT COALESCE(SUM(total), 0) AS jumlah
       FROM transaksi
-      WHERE id_usaha = ? 
-        AND jenis_transaksi = 'pengeluaran'
-        AND (
-          LOWER(kategori) LIKE '%stok%' OR 
-          LOWER(kategori) LIKE '%kulakan%' OR 
-          LOWER(kategori) LIKE '%bahan%' OR 
-          LOWER(kategori) LIKE '%kemasan%'
-        )
+      WHERE id_usaha = ? AND tipe_akun = ?
       ''',
-      [idUsaha],
+      [idUsaha, tipeAkun],
     );
     return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
   }
 
-  Future<double> getTotalPemasukanPenjualanAll(String idUsaha) async {
+  Future<double> getSumTipeAkunPeriode(
+    String idUsaha,
+    String tipeAkun,
+    DateTime start,
+    DateTime end,
+  ) async {
     final db = await _db.database;
     final rows = await db.rawQuery(
       '''
       SELECT COALESCE(SUM(total), 0) AS jumlah
       FROM transaksi
-      WHERE id_usaha = ? 
-        AND jenis_transaksi = 'pemasukan'
-        AND LOWER(kategori) NOT LIKE '%pendapatan lain%'
+      WHERE id_usaha = ? AND tipe_akun = ?
+        AND tgl >= ? AND tgl < ?
       ''',
-      [idUsaha],
+      [idUsaha, tipeAkun, start.toIso8601String(), end.toIso8601String()],
     );
     return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
   }
+
+  Future<double> getTotalPengeluaranStokAll(String idUsaha) =>
+      getSumTipeAkunAllTime(idUsaha, TipeAkun.hpp);
+
+  Future<double> getTotalPemasukanPenjualanAll(String idUsaha) =>
+      getSumTipeAkunAllTime(idUsaha, TipeAkun.penjualan);
 }
 
 final transaksiRepositoryProvider = Provider<TransaksiRepository>((ref) {

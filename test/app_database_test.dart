@@ -82,68 +82,7 @@ void main() {
 
     final lama = await databaseFactoryFfi.openDatabase(
       path,
-      options: OpenDatabaseOptions(
-        version: 1,
-        onCreate: (db, _) async {
-          // Bentuk skema versi 1 yang asli.
-          await db.execute('''
-            CREATE TABLE akun (
-              id           TEXT PRIMARY KEY,
-              nama_pemilik TEXT NOT NULL,
-              nomor_hp     TEXT NOT NULL UNIQUE,
-              pin_hash     TEXT NOT NULL,
-              created_at   TEXT NOT NULL,
-              updated_at   TEXT NOT NULL
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE usaha (
-              id              TEXT PRIMARY KEY,
-              nama_usaha      TEXT NOT NULL,
-              alamat          TEXT,
-              jenis_usaha     TEXT NOT NULL,
-              kas             REAL NOT NULL DEFAULT 0,
-              id_akun         TEXT NOT NULL,
-              created_at      TEXT NOT NULL,
-              updated_at      TEXT NOT NULL
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE transaksi (
-              id              TEXT PRIMARY KEY,
-              jenis_transaksi TEXT NOT NULL,
-              kategori        TEXT NOT NULL,
-              total           REAL NOT NULL,
-              tgl             TEXT NOT NULL,
-              created_at      TEXT NOT NULL,
-              id_usaha        TEXT NOT NULL
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE hutang (
-              id              TEXT PRIMARY KEY,
-              nama_toko       TEXT NOT NULL,
-              nominal         REAL NOT NULL,
-              keterangan      TEXT,
-              tgl_jatuh_tempo TEXT,
-              created_at      TEXT NOT NULL,
-              id_usaha        TEXT NOT NULL
-            )
-          ''');
-          await db.execute('''
-            CREATE TABLE piutang (
-              id              TEXT PRIMARY KEY,
-              nama_orang      TEXT NOT NULL,
-              nomor_hp        TEXT,
-              nominal         REAL NOT NULL,
-              keterangan      TEXT,
-              tgl_jatuh_tempo TEXT,
-              created_at      TEXT NOT NULL,
-              id_usaha        TEXT NOT NULL
-            )
-          ''');
-        },
-      ),
+      options: OpenDatabaseOptions(version: 1, onCreate: _skemaV1),
     );
     await lama.close();
 
@@ -162,4 +101,141 @@ void main() {
     expect(kolomHasilUpgrade, equals(kolomInstallBaru));
     await databaseFactoryFfi.deleteDatabase(path);
   });
+
+  test('upgrade v1 mengisi tipe_akun dan kolom kasbon baru', () async {
+    final path = '${Directory.systemTemp.path}/umkmku_migrasi_v6_test.db';
+    await databaseFactoryFfi.deleteDatabase(path);
+
+    final lama = await databaseFactoryFfi.openDatabase(
+      path,
+      options: OpenDatabaseOptions(version: 1, onCreate: _skemaV1),
+    );
+    final now = DateTime.now().toIso8601String();
+    await lama.insert('transaksi', {
+      'id': 't1',
+      'jenis_transaksi': 'pengeluaran',
+      'kategori': 'Kulakan/Stok',
+      'total': 200000,
+      'tgl': now,
+      'created_at': now,
+      'id_usaha': 'u1',
+    });
+    await lama.insert('transaksi', {
+      'id': 't2',
+      'jenis_transaksi': 'pengeluaran',
+      // Aturan lama akan mengira ini pembelian stok karena mengandung "bahan".
+      'kategori': 'Pelunasan Hutang (Toko Bahan Jaya)',
+      'total': 75000,
+      'tgl': now,
+      'created_at': now,
+      'id_usaha': 'u1',
+    });
+    await lama.insert('transaksi', {
+      'id': 't3',
+      'jenis_transaksi': 'pemasukan',
+      'kategori': 'Pendapatan Lain',
+      'total': 10000,
+      'tgl': now,
+      'created_at': now,
+      'id_usaha': 'u1',
+    });
+    await lama.insert('hutang', {
+      'id': 'h1',
+      'nama_toko': 'Toko Jaya',
+      'nominal': 50000,
+      'created_at': now,
+      'id_usaha': 'u1',
+    });
+    await lama.close();
+
+    final appDb =
+        AppDatabase.forTesting(factory: databaseFactoryFfi, path: path);
+    final db = await appDb.database;
+
+    Future<String> tipe(String id) async {
+      final rows = await db.query('transaksi',
+          columns: ['tipe_akun'], where: 'id = ?', whereArgs: [id]);
+      return rows.first['tipe_akun'] as String;
+    }
+
+    expect(await tipe('t1'), 'hpp');
+    expect(await tipe('t2'), 'operasional',
+        reason: 'nama toko tidak boleh membuatnya terhitung sebagai stok');
+    expect(await tipe('t3'), 'pendapatan_lain');
+
+    final hutang = (await db.query('hutang', where: 'id = ?', whereArgs: ['h1']))
+        .first;
+    expect(hutang['status'], 'aktif');
+    expect(hutang['nominal_awal'], 50000,
+        reason: 'kasbon lama memakai sisa saat ini sebagai nominal awal');
+
+    // Tabel dan index riwayat pembayaran ikut terbentuk lewat jalur upgrade.
+    final objek = await db.rawQuery(
+        "SELECT name FROM sqlite_master WHERE name IN "
+        "('pembayaran_kasbon', 'idx_pembayaran_kasbon')");
+    expect(objek, hasLength(2));
+
+    await appDb.close();
+    await databaseFactoryFfi.deleteDatabase(path);
+  });
+}
+
+/// Bentuk skema versi 1 yang asli, dipakai sebagai titik awal uji migrasi.
+Future<void> _skemaV1(Database db, int version) async {
+  await db.execute('''
+    CREATE TABLE akun (
+      id           TEXT PRIMARY KEY,
+      nama_pemilik TEXT NOT NULL,
+      nomor_hp     TEXT NOT NULL UNIQUE,
+      pin_hash     TEXT NOT NULL,
+      created_at   TEXT NOT NULL,
+      updated_at   TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE usaha (
+      id              TEXT PRIMARY KEY,
+      nama_usaha      TEXT NOT NULL,
+      alamat          TEXT,
+      jenis_usaha     TEXT NOT NULL,
+      kas             REAL NOT NULL DEFAULT 0,
+      id_akun         TEXT NOT NULL,
+      created_at      TEXT NOT NULL,
+      updated_at      TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE transaksi (
+      id              TEXT PRIMARY KEY,
+      jenis_transaksi TEXT NOT NULL,
+      kategori        TEXT NOT NULL,
+      total           REAL NOT NULL,
+      tgl             TEXT NOT NULL,
+      created_at      TEXT NOT NULL,
+      id_usaha        TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE hutang (
+      id              TEXT PRIMARY KEY,
+      nama_toko       TEXT NOT NULL,
+      nominal         REAL NOT NULL,
+      keterangan      TEXT,
+      tgl_jatuh_tempo TEXT,
+      created_at      TEXT NOT NULL,
+      id_usaha        TEXT NOT NULL
+    )
+  ''');
+  await db.execute('''
+    CREATE TABLE piutang (
+      id              TEXT PRIMARY KEY,
+      nama_orang      TEXT NOT NULL,
+      nomor_hp        TEXT,
+      nominal         REAL NOT NULL,
+      keterangan      TEXT,
+      tgl_jatuh_tempo TEXT,
+      created_at      TEXT NOT NULL,
+      id_usaha        TEXT NOT NULL
+    )
+  ''');
 }

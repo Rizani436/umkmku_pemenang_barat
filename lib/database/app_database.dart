@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import '../models/pembayaran_kasbon.dart';
+import '../models/tipe_akun.dart';
 
 class AppDatabase {
-  static const versiSkema = 5;
+  static const versiSkema = 6;
 
   static final AppDatabase _instance = AppDatabase._();
   factory AppDatabase() => _instance;
@@ -72,6 +74,72 @@ class AppDatabase {
     if (oldVersion < 5) {
       await _createIndexes(db);
     }
+    if (oldVersion < 6) {
+      await db.execute(
+          "ALTER TABLE transaksi ADD COLUMN tipe_akun TEXT NOT NULL DEFAULT '${TipeAkun.operasional}'");
+      await _backfillTipeAkun(db);
+
+      for (final tabel in ['hutang', 'piutang']) {
+        await db.execute(
+            'ALTER TABLE $tabel ADD COLUMN nominal_awal REAL NOT NULL DEFAULT 0');
+        await db.execute(
+            "ALTER TABLE $tabel ADD COLUMN status TEXT NOT NULL DEFAULT '${StatusKasbon.aktif}'");
+        // Kasbon lama tidak menyimpan nominal asli; yang tersisa kita anggap
+        // sebagai nominal awalnya.
+        await db.execute(
+            'UPDATE $tabel SET nominal_awal = nominal WHERE nominal_awal = 0');
+      }
+
+      await _createTabelPembayaranKasbon(db);
+      await _createIndexes(db);
+    }
+  }
+
+  /// Mengisi `tipe_akun` untuk transaksi yang sudah ada, memakai aturan yang
+  /// sama dengan [TipeAkun.dariKategori] tapi dalam bentuk SQL.
+  Future<void> _backfillTipeAkun(Database db) async {
+    Future<void> set(String tipe, String where, List<Object?> args) =>
+        db.update('transaksi', {'tipe_akun': tipe},
+            where: where, whereArgs: args);
+
+    await set(TipeAkun.penjualan, 'jenis_transaksi = ?', ['pemasukan']);
+    await set(
+      TipeAkun.pendapatanLain,
+      "jenis_transaksi = ? AND LOWER(TRIM(kategori)) = 'pendapatan lain'",
+      ['pemasukan'],
+    );
+    await set(TipeAkun.operasional, 'jenis_transaksi = ?', ['pengeluaran']);
+    await set(
+      TipeAkun.hpp,
+      "jenis_transaksi = ? AND LOWER(TRIM(kategori)) "
+          "IN ('kulakan/stok', 'bahan baku', 'kemasan', 'bahan pakai')",
+      ['pengeluaran'],
+    );
+    await set(
+      TipeAkun.pribadi,
+      "jenis_transaksi = ? AND LOWER(TRIM(kategori)) = 'kep. pribadi'",
+      ['pengeluaran'],
+    );
+  }
+
+  Future<void> _createTabelPembayaranKasbon(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pembayaran_kasbon (
+        id          TEXT PRIMARY KEY,
+        id_kasbon   TEXT NOT NULL,
+        jenis       TEXT NOT NULL,
+        nominal     REAL NOT NULL,
+        tgl         TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        id_usaha    TEXT NOT NULL,
+        FOREIGN KEY (id_usaha) REFERENCES usaha(id) ON DELETE CASCADE
+      )
+    ''');
+    // Index-nya dibuat di sini, bukan di _createIndexes(), karena
+    // _createIndexes() juga dipanggil dari jalur upgrade v5 — saat itu
+    // tabel ini belum ada.
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pembayaran_kasbon ON pembayaran_kasbon(id_kasbon)');
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -115,6 +183,7 @@ class AppDatabase {
         kategori        TEXT NOT NULL,
         total           REAL NOT NULL,
         tgl             TEXT NOT NULL,
+        tipe_akun       TEXT NOT NULL DEFAULT 'operasional',
         created_at      TEXT NOT NULL,
         id_usaha        TEXT NOT NULL,
         FOREIGN KEY (id_usaha) REFERENCES usaha(id) ON DELETE CASCADE
@@ -126,6 +195,8 @@ class AppDatabase {
         id              TEXT PRIMARY KEY,
         nama_toko       TEXT NOT NULL,
         nominal         REAL NOT NULL,
+        nominal_awal    REAL NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'aktif',
         keterangan      TEXT,
         tgl_jatuh_tempo TEXT,
         created_at      TEXT NOT NULL,
@@ -140,6 +211,8 @@ class AppDatabase {
         nama_orang      TEXT NOT NULL,
         nomor_hp        TEXT,
         nominal         REAL NOT NULL,
+        nominal_awal    REAL NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'aktif',
         keterangan      TEXT,
         tgl_jatuh_tempo TEXT,
         created_at      TEXT NOT NULL,
@@ -148,6 +221,7 @@ class AppDatabase {
       )
     ''');
 
+    await _createTabelPembayaranKasbon(db);
     await _createIndexes(db);
   }
 
