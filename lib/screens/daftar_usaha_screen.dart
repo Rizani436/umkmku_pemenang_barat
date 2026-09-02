@@ -155,11 +155,16 @@ class _DaftarUsahaScreenState extends State<DaftarUsahaScreen> {
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        'Lanjut Buat PIN',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      // Flexible supaya label tetap muat di layar sempit
+                      // atau saat pengguna memperbesar ukuran teks sistem.
+                      Flexible(
+                        child: Text(
+                          'Lanjut Buat PIN',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       SizedBox(width: 8),
@@ -211,6 +216,10 @@ class _DaftarUsahaScreenState extends State<DaftarUsahaScreen> {
   Widget _buildDropdown() {
     return DropdownButtonFormField<String>(
       initialValue: _sektorTerpilih,
+      // Tanpa isExpanded, isi dropdown memakai lebar intrinsiknya sehingga
+      // teks panjang melewati batas kolom (right overflow) alih-alih
+      // dipotong dengan elipsis.
+      isExpanded: true,
       decoration: _inputDecoration('Perdagangan/Jasa/Manufaktur'),
       icon: const Icon(Icons.keyboard_arrow_down),
       items: _sektorOptions

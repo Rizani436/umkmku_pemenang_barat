@@ -1,18 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
 import '../providers/kasbon_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../theme/app_colors.dart';
 
 import 'tambah_kasbon_screen.dart';
 import 'detail_kasbon_screen.dart';
 import 'kirim_tagihan_screen.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
-const _colorHutang = Color(0xFFFF5A5A);
-const _colorPiutang = Color(0xFFF5A623);
+const _colorHutang = AppColors.danger;
+const _colorPiutang = AppColors.warning;
 
 enum JatuhTempoStatus { overdue, dueSoon, normal, none }
 
@@ -38,17 +38,6 @@ class KasbonTab extends ConsumerStatefulWidget {
 class _KasbonTabState extends ConsumerState<KasbonTab> {
   int _tabIndex = 0;
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   JatuhTempoInfo _getJatuhTempoInfo(DateTime? tglJatuhTempo) {
     if (tglJatuhTempo == null) {
@@ -86,22 +75,8 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
         color: const Color(0xFFD97706),
       );
     } else {
-      const bulanNames = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'Mei',
-        'Jun',
-        'Jul',
-        'Agu',
-        'Sep',
-        'Okt',
-        'Nov',
-        'Des'
-      ];
       final dateStr =
-          '${target.day} ${bulanNames[target.month - 1]} ${target.year}';
+          '${target.day} ${namaBulanIndoSingkat[target.month]} ${target.year}';
       return JatuhTempoInfo(
         status: JatuhTempoStatus.normal,
         label: 'Tempo: $dateStr',
@@ -117,10 +92,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
       ),
     );
     if (res == true) {
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
     }
   }
 
@@ -226,10 +198,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(hutangListProvider);
-              ref.invalidate(piutangListProvider);
-              ref.invalidate(dashboardSummaryProvider);
-              ref.invalidate(riwayatProvider);
+              refreshDataUsaha(ref);
             },
             color: AppColors.primary,
             child: SingleChildScrollView(
@@ -382,7 +351,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   child: Center(child: CircularProgressIndicator()),
                 )
               : Text(
-                  _formatRupiah(amount),
+                  formatRupiah(amount),
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
@@ -452,9 +421,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   ),
                 );
                 if (res == true) {
-                  ref.invalidate(hutangListProvider);
-                  ref.invalidate(dashboardSummaryProvider);
-                  ref.invalidate(riwayatProvider);
+                  refreshDataUsaha(ref);
                 }
               },
             );
@@ -514,9 +481,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   ),
                 );
                 if (res == true) {
-                  ref.invalidate(piutangListProvider);
-                  ref.invalidate(dashboardSummaryProvider);
-                  ref.invalidate(riwayatProvider);
+                  refreshDataUsaha(ref);
                 }
               },
               onWhatsAppTap: hasPhone
@@ -598,7 +563,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        _formatRupiah(amount),
+                        formatRupiah(amount),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -647,14 +612,14 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                           children: [
                             Icon(
                               Icons.chat_rounded,
-                              color: Color(0xFF1DB57A),
+                              color: AppColors.success,
                               size: 20,
                             ),
                             SizedBox(width: 6),
                             Text(
                               "Tagih",
                               style: TextStyle(
-                                color: Color(0xFF1DB57A),
+                                color: AppColors.success,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),

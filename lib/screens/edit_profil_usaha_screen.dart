@@ -1,12 +1,11 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
-import '../providers/laporan_provider.dart';
-import '../providers/usaha_provider.dart';
 import '../repositories/auth_repository.dart';
 import '../repositories/usaha_repository.dart';
 import '../services/wilayah_service.dart';
 import '../theme/app_colors.dart';
+import '../providers/refresh.dart';
 
 class EditProfilUsahaScreen extends ConsumerStatefulWidget {
   final String idUsaha;
@@ -425,15 +424,15 @@ class _EditProfilUsahaScreenState extends ConsumerState<EditProfilUsahaScreen> {
             nomorHP: newNomorHP,
           );
 
-      ref.invalidate(currentUsahaProvider);
+      refreshDataUsaha(ref);
       ref.invalidate(authControllerProvider);
-      ref.invalidate(laporanNeracaProvider);
+      refreshDataUsaha(ref);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Profil usaha berhasil diperbarui!'),
-            backgroundColor: Color(0xFF1DB57A),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -646,7 +645,7 @@ class _EditProfilUsahaScreenState extends ConsumerState<EditProfilUsahaScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isSaving ? null : _simpanPerubahan,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5B4FDD),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

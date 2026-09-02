@@ -1,19 +1,19 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
-import '../providers/kasbon_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../repositories/hutang_repository.dart';
+import '../models/pembayaran_kasbon.dart';
+import '../repositories/pembayaran_kasbon_repository.dart';
 import '../repositories/piutang_repository.dart';
 import '../repositories/transaksi_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
 import 'edit_kasbon_screen.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class DetailKasbonScreen extends ConsumerStatefulWidget {
   final Hutang? hutang;
@@ -43,37 +43,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
       _isPiutang ? widget.piutang!.tglJatuhTempo : widget.hutang!.tglJatuhTempo;
   DateTime get _createdAt => _isPiutang ? widget.piutang!.createdAt : widget.hutang!.createdAt;
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
-  String _formatTanggalIndo(DateTime dt) {
-    const bulan = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    final dd = dt.day.toString().padLeft(2, '0');
-    return '$dd ${bulan[dt.month]} ${dt.year}';
-  }
 
   Future<void> _konfirmasiHapus() async {
     final setuju = await showDialog<bool>(
@@ -92,7 +62,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5A5A),
+              backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -106,16 +76,21 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
     if (setuju != true) return;
 
     try {
+      final idKasbon = _isPiutang ? widget.piutang!.id : widget.hutang!.id;
+
+      // Hapus permanen memang menghapus riwayat pembayarannya juga, supaya
+      // tidak meninggalkan baris yatim di pembayaran_kasbon.
+      await ref
+          .read(pembayaranKasbonRepositoryProvider)
+          .hapusByKasbon(idKasbon);
+
       if (_isPiutang) {
-        await ref.read(piutangRepositoryProvider).hapus(widget.piutang!.id);
+        await ref.read(piutangRepositoryProvider).hapus(idKasbon);
       } else {
-        await ref.read(hutangRepositoryProvider).hapus(widget.hutang!.id);
+        await ref.read(hutangRepositoryProvider).hapus(idKasbon);
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -156,7 +131,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                       color: const Color(0xFFFFF3DC),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.payments_outlined, color: Color(0xFFF5A623)),
+                    child: const Icon(Icons.payments_outlined, color: AppColors.warning),
                   ),
                   const SizedBox(width: 10),
                   Text(_isPiutang ? 'Cicil Piutang' : 'Cicil Hutang',
@@ -170,7 +145,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                   children: [
                     Text('Nama: $_nama', style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text('Sisa Saat Ini: ${_formatRupiah(sisaPiutang)}',
+                    Text('Sisa Saat Ini: ${formatRupiah(sisaPiutang)}',
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                     const SizedBox(height: 16),
                     const Text('Nominal Pembayaran / Cicilan:',
@@ -214,7 +189,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                                 : Icons.info_outline_rounded,
                             size: 18,
                             color: inputVal >= sisaPiutang
-                                ? const Color(0xFF1DB57A)
+                                ? AppColors.success
                                 : AppColors.primary,
                           ),
                           const SizedBox(width: 8),
@@ -222,12 +197,12 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                             child: Text(
                               inputVal >= sisaPiutang
                                   ? 'Akan LUNAS sepenuhnya!'
-                                  : 'Sisa setelah cicil: ${_formatRupiah(sisaSetelahCicil)}',
+                                  : 'Sisa setelah cicil: ${formatRupiah(sisaSetelahCicil)}',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: inputVal >= sisaPiutang
-                                    ? const Color(0xFF1DB57A)
+                                    ? AppColors.success
                                     : AppColors.primary,
                               ),
                             ),
@@ -246,7 +221,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                 ElevatedButton(
                   onPressed: (inputVal <= 0) ? null : () => Navigator.pop(ctx, inputVal),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB57A),
+                    backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -284,52 +259,46 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
         }
       }
 
-      if (nominalCicilan >= sisaPiutang) {
-        if (_isPiutang) {
-          await ref.read(piutangRepositoryProvider).hapus(widget.piutang!.id);
-        } else {
-          await ref.read(hutangRepositoryProvider).hapus(widget.hutang!.id);
-        }
-      } else {
-        final sisaBaru = sisaPiutang - nominalCicilan;
-        if (_isPiutang) {
-          await ref.read(piutangRepositoryProvider).update(
-                id: widget.piutang!.id,
-                namaOrang: widget.piutang!.namaOrang,
-                nominal: sisaBaru,
-                nomorHP: widget.piutang!.nomorHP,
-                keterangan: widget.piutang!.keterangan,
-                tglJatuhTempo: widget.piutang!.tglJatuhTempo,
-              );
-        } else {
-          await ref.read(hutangRepositoryProvider).update(
-                id: widget.hutang!.id,
-                namaToko: widget.hutang!.namaToko,
-                nominal: sisaBaru,
-                keterangan: widget.hutang!.keterangan,
-                tglJatuhTempo: widget.hutang!.tglJatuhTempo,
-              );
-        }
+      // Pembayaran dicatat sebagai baris tersendiri, dan kasbon yang habis
+      // ditandai LUNAS — dulu barisnya dihapus sehingga nominal asli dan
+      // riwayat cicilannya hilang.
+      final idKasbon = _isPiutang ? widget.piutang!.id : widget.hutang!.id;
+      final nominalDibayar =
+          nominalCicilan >= sisaPiutang ? sisaPiutang : nominalCicilan;
+      final sisaBaru = sisaPiutang - nominalDibayar;
+
+      if (usaha != null) {
+        await ref.read(pembayaranKasbonRepositoryProvider).catat(
+              idKasbon: idKasbon,
+              jenis: _isPiutang ? JenisKasbon.piutang : JenisKasbon.hutang,
+              nominal: nominalDibayar,
+              idUsaha: usaha.id,
+            );
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
-      ref.invalidate(laporanRugiLabaProvider);
-      ref.invalidate(riwayatProvider);
+      if (_isPiutang) {
+        await ref
+            .read(piutangRepositoryProvider)
+            .bayar(id: idKasbon, sisaBaru: sisaBaru);
+      } else {
+        await ref
+            .read(hutangRepositoryProvider)
+            .bayar(id: idKasbon, sisaBaru: sisaBaru);
+      }
+
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
 
       final msg = nominalCicilan >= sisaPiutang
           ? '$_title atas nama "$_nama" berhasil LUNAS! 🎉'
-          : 'Cicilan ${_formatRupiah(nominalCicilan)} berhasil dicatat! Sisa: ${_formatRupiah(sisaPiutang - nominalCicilan)}';
+          : 'Cicilan ${formatRupiah(nominalCicilan)} berhasil dicatat! Sisa: ${formatRupiah(sisaPiutang - nominalCicilan)}';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -356,7 +325,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1DB57A),
+              backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -389,25 +358,34 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
         }
       }
 
-      if (_isPiutang) {
-        await ref.read(piutangRepositoryProvider).hapus(widget.piutang!.id);
-      } else {
-        await ref.read(hutangRepositoryProvider).hapus(widget.hutang!.id);
+      final idKasbon = _isPiutang ? widget.piutang!.id : widget.hutang!.id;
+      if (usaha != null) {
+        await ref.read(pembayaranKasbonRepositoryProvider).catat(
+              idKasbon: idKasbon,
+              jenis: _isPiutang ? JenisKasbon.piutang : JenisKasbon.hutang,
+              nominal: _nominal,
+              idUsaha: usaha.id,
+            );
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
-      ref.invalidate(laporanRugiLabaProvider);
-      ref.invalidate(riwayatProvider);
+      if (_isPiutang) {
+        await ref
+            .read(piutangRepositoryProvider)
+            .bayar(id: idKasbon, sisaBaru: 0);
+      } else {
+        await ref
+            .read(hutangRepositoryProvider)
+            .bayar(id: idKasbon, sisaBaru: 0);
+      }
+
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$_title atas nama "$_nama" berhasil dilunasi! 🎉'),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -437,6 +415,9 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                     const SizedBox(height: 20),
 
                     _buildDetailInfoCard(),
+                    const SizedBox(height: 20),
+
+                    _buildRiwayatPembayaranCard(),
                   ],
                 ),
               ),
@@ -523,7 +504,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
             child: const Icon(
               Icons.shopping_bag_rounded,
               size: 36,
-              color: Color(0xFFFF5A5A),
+              color: AppColors.danger,
             ),
           ),
           const SizedBox(height: 16),
@@ -539,11 +520,11 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
           const SizedBox(height: 6),
 
           Text(
-            _formatRupiah(_nominal),
+            formatRupiah(_nominal),
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFFF5A5A),
+              color: AppColors.danger,
               letterSpacing: 0.3,
             ),
           ),
@@ -554,8 +535,8 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
 
   Widget _buildDetailInfoCard() {
     final tglJatuhTempoStr = _tglJatuhTempo != null
-        ? _formatTanggalIndo(_tglJatuhTempo!)
-        : _formatTanggalIndo(_createdAt);
+        ? formatTanggalIndo(_tglJatuhTempo!, padHari: true)
+        : formatTanggalIndo(_createdAt, padHari: true);
 
     return Container(
       width: double.infinity,
@@ -676,6 +657,113 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
     );
   }
 
+  /// Daftar cicilan/pelunasan yang sudah tercatat. Dulu data ini tidak
+  /// pernah disimpan, jadi tidak ada yang bisa ditampilkan di sini.
+  Widget _buildRiwayatPembayaranCard() {
+    final idKasbon = _isPiutang ? widget.piutang!.id : widget.hutang!.id;
+    final riwayatAsync = ref.watch(riwayatPembayaranProvider(idKasbon));
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Riwayat Pembayaran',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          riwayatAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => Text(
+              'Gagal memuat riwayat: $e',
+              style: const TextStyle(fontSize: 12, color: AppColors.danger),
+            ),
+            data: (daftar) {
+              if (daftar.isEmpty) {
+                return const Text(
+                  'Belum ada pembayaran tercatat.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                );
+              }
+
+              final totalDibayar =
+                  daftar.fold<double>(0, (a, b) => a + b.nominal);
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ...daftar.map(
+                    (p) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            formatTanggalIndo(p.tgl, padHari: true),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            formatRupiah(p.nominal),
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total dibayar',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      Text(
+                        formatRupiah(totalDibayar),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildBottomActionBar() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -699,7 +787,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                 ),
                 child: const Icon(
                   Icons.delete_outline_rounded,
-                  color: Color(0xFFFF5A5A),
+                  color: AppColors.danger,
                   size: 22,
                 ),
               ),
@@ -747,7 +835,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A623),
+                  backgroundColor: AppColors.warning,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: EdgeInsets.zero,
@@ -774,7 +862,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1DB57A),
+                  backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: EdgeInsets.zero,

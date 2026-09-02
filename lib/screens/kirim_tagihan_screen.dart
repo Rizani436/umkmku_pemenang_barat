@@ -1,12 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/piutang.dart';
 import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
 import '../repositories/piutang_repository.dart';
-import '../providers/kasbon_provider.dart';
-import '../providers/riwayat_provider.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class KirimTagihanScreen extends ConsumerStatefulWidget {
   final Piutang piutang;
@@ -29,20 +29,9 @@ class _KirimTagihanScreenState extends ConsumerState<KirimTagihanScreen> {
     _waktuFormatted = '$jam:$menit';
   }
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   String _buildPesan(String namaUsaha) {
-    final nominalStr = _formatRupiah(widget.piutang.nominal);
+    final nominalStr = formatRupiah(widget.piutang.nominal);
     final keteranganText = (widget.piutang.keterangan != null &&
             widget.piutang.keterangan!.trim().isNotEmpty)
         ? ' (${widget.piutang.keterangan})'
@@ -51,22 +40,8 @@ class _KirimTagihanScreenState extends ConsumerState<KirimTagihanScreen> {
     String tempoText = '';
     if (widget.piutang.tglJatuhTempo != null) {
       final dt = widget.piutang.tglJatuhTempo!;
-      const bulanNames = [
-        'Januari',
-        'Februari',
-        'Maret',
-        'April',
-        'Mei',
-        'Juni',
-        'Juli',
-        'Agustus',
-        'September',
-        'Oktober',
-        'November',
-        'Desember'
-      ];
       tempoText =
-          ' (Jatuh Tempo: ${dt.day} ${bulanNames[dt.month - 1]} ${dt.year})';
+          ' (Jatuh Tempo: ${dt.day} ${namaBulanIndo[dt.month]} ${dt.year})';
     }
 
     return 'Halo ${widget.piutang.namaOrang}, ini dari $namaUsaha. Mengingatkan ada nota kasbon$keteranganText sebesar $nominalStr$tempoText yang belum diselesaikan. Terima kasih.';
@@ -112,8 +87,7 @@ class _KirimTagihanScreenState extends ConsumerState<KirimTagihanScreen> {
                       nomorHP: val,
                       keterangan: widget.piutang.keterangan,
                     );
-                ref.invalidate(piutangListProvider);
-                ref.invalidate(riwayatProvider);
+                refreshDataUsaha(ref);
               }
               if (!ctx.mounted) return;
               Navigator.pop(ctx, val);

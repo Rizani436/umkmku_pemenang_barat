@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'tambah_transaksi_screen.dart';
+import '../utils/format.dart';
 
 class TransaksiSuksesScreen extends StatefulWidget {
   final String jenisTransaksi;
@@ -45,20 +46,9 @@ class _TransaksiSuksesScreenState extends State<TransaksiSuksesScreen>
   bool get _isPemasukan => widget.jenisTransaksi == 'pemasukan';
 
   Color get _activeColor => _isPemasukan
-      ? const Color(0xFF1DB57A)
-      : const Color(0xFFFF5A5A);
+      ? AppColors.success
+      : AppColors.danger;
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +120,7 @@ class _TransaksiSuksesScreenState extends State<TransaksiSuksesScreen>
                           TextSpan(
                             text: _isPemasukan ? 'Pendapatan ' : 'Pengeluaran ',
                           ),
-                          TextSpan(text: _formatRupiah(widget.total)),
+                          TextSpan(text: formatRupiah(widget.total)),
                         ],
                       ),
                     ),

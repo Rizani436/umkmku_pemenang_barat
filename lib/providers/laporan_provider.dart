@@ -3,6 +3,7 @@ import '../repositories/transaksi_repository.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
 import 'usaha_provider.dart';
+import '../utils/format.dart';
 
 
 enum PeriodeLaporan {
@@ -101,36 +102,6 @@ class FilterPeriodeState {
   }
 
   String get label {
-    const namaBulanLengkap = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    const namaBulanSingkat = [
-      '',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'Mei',
-      'Jun',
-      'Jul',
-      'Ags',
-      'Sep',
-      'Okt',
-      'Nov',
-      'Des',
-    ];
 
     switch (jenis) {
       case PeriodeLaporan.bulanIni:
@@ -138,10 +109,10 @@ class FilterPeriodeState {
       case PeriodeLaporan.bulanLalu:
         return 'Bulan Lalu';
       case PeriodeLaporan.pilihBulan:
-        return '${namaBulanLengkap[month]} $year';
+        return '${namaBulanIndo[month]} $year';
       case PeriodeLaporan.rentangTanggal:
         if (customStart != null && customEnd != null) {
-          return '${customStart!.day} ${namaBulanSingkat[customStart!.month]} - ${customEnd!.day} ${namaBulanSingkat[customEnd!.month]} ${customEnd!.year}';
+          return '${customStart!.day} ${namaBulanIndoSingkat[customStart!.month]} - ${customEnd!.day} ${namaBulanIndoSingkat[customEnd!.month]} ${customEnd!.year}';
         }
         return 'Rentang Tanggal';
       case PeriodeLaporan.enamBulanTerakhir:
@@ -154,39 +125,24 @@ class FilterPeriodeState {
   }
 
   String get detailLabel {
-    const namaBulanLengkap = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
     final now = DateTime.now();
 
     switch (jenis) {
       case PeriodeLaporan.bulanIni:
-        return '${namaBulanLengkap[now.month]} ${now.year}';
+        return '${namaBulanIndo[now.month]} ${now.year}';
       case PeriodeLaporan.bulanLalu:
         final dt = DateTime(now.year, now.month - 1, 1);
-        return '${namaBulanLengkap[dt.month]} ${dt.year}';
+        return '${namaBulanIndo[dt.month]} ${dt.year}';
       case PeriodeLaporan.pilihBulan:
-        return '${namaBulanLengkap[month]} $year';
+        return '${namaBulanIndo[month]} $year';
       case PeriodeLaporan.rentangTanggal:
         if (customStart != null && customEnd != null) {
-          return '${customStart!.day} ${namaBulanLengkap[customStart!.month]} ${customStart!.year} - ${customEnd!.day} ${namaBulanLengkap[customEnd!.month]} ${customEnd!.year}';
+          return '${customStart!.day} ${namaBulanIndo[customStart!.month]} ${customStart!.year} - ${customEnd!.day} ${namaBulanIndo[customEnd!.month]} ${customEnd!.year}';
         }
         return 'Rentang Tanggal';
       case PeriodeLaporan.enamBulanTerakhir:
         final dtStart = DateTime(now.year, now.month - 5, 1);
-        return '${namaBulanLengkap[dtStart.month]} ${dtStart.year} - ${namaBulanLengkap[now.month]} ${now.year}';
+        return '${namaBulanIndo[dtStart.month]} ${dtStart.year} - ${namaBulanIndo[now.month]} ${now.year}';
       case PeriodeLaporan.tahunIni:
         return 'Tahun ${now.year}';
       case PeriodeLaporan.semua:

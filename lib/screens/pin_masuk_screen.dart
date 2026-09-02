@@ -1,6 +1,9 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../services/pin_lockout_service.dart';
 import '../theme/app_colors.dart';
 import 'dashboard_screen.dart';
 
@@ -28,10 +31,49 @@ class _PinMasukScreenState extends ConsumerState<PinMasukScreen> {
   String? _errorMessage;
   bool _isLoading = false;
 
+  Duration _sisaKunci = Duration.zero;
+  Timer? _timerKunci;
 
+  bool get _terkunci => _sisaKunci > Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _perbaruiStatusKunci();
+  }
+
+  @override
+  void dispose() {
+    _timerKunci?.cancel();
+    super.dispose();
+  }
+
+  /// Menyalakan hitung mundur selama akun masih terkunci, lalu berhenti
+  /// sendiri begitu waktunya habis.
+  void _perbaruiStatusKunci() {
+    final sisa = ref.read(pinLockoutServiceProvider).sisaKunci(widget.nomorHP);
+    setState(() => _sisaKunci = sisa);
+
+    _timerKunci?.cancel();
+    if (sisa == Duration.zero) return;
+
+    _timerKunci = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      final baru =
+          ref.read(pinLockoutServiceProvider).sisaKunci(widget.nomorHP);
+      setState(() {
+        _sisaKunci = baru;
+        if (baru == Duration.zero) _errorMessage = null;
+      });
+      if (baru == Duration.zero) timer.cancel();
+    });
+  }
 
   void _onDigit(String digit) {
-    if (_isLoading || _input.length >= _panjangPin) return;
+    if (_isLoading || _terkunci || _input.length >= _panjangPin) return;
     setState(() {
       _errorMessage = null;
       _input += digit;
@@ -40,11 +82,17 @@ class _PinMasukScreenState extends ConsumerState<PinMasukScreen> {
   }
 
   void _onBackspace() {
-    if (_isLoading || _input.isEmpty) return;
+    if (_isLoading || _terkunci || _input.isEmpty) return;
     setState(() => _input = _input.substring(0, _input.length - 1));
   }
 
   Future<void> _verifikasi() async {
+    final lockout = ref.read(pinLockoutServiceProvider);
+    if (lockout.sedangTerkunci(widget.nomorHP)) {
+      _perbaruiStatusKunci();
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     await ref.read(authControllerProvider.notifier).masuk(
@@ -57,14 +105,22 @@ class _PinMasukScreenState extends ConsumerState<PinMasukScreen> {
     final authState = ref.read(authControllerProvider);
 
     if (authState.hasError || authState.value == null) {
+      final sisaKesempatan = await lockout.catatGagal(widget.nomorHP);
+      if (!mounted) return;
+
       setState(() {
         _isLoading = false;
-        _errorMessage = 'PIN salah atau akun tidak ditemukan';
         _input = '';
+        _errorMessage = sisaKesempatan > 0
+            ? 'PIN salah. Sisa $sisaKesempatan percobaan lagi.'
+            : 'Terlalu banyak percobaan. Coba lagi nanti.';
       });
+      _perbaruiStatusKunci();
       return;
     }
 
+    await lockout.reset(widget.nomorHP);
+    if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const DashboardScreen()),
@@ -136,11 +192,15 @@ class _PinMasukScreenState extends ConsumerState<PinMasukScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Text(
-                _errorMessage ?? 'Gunakan PIN 4 angka yang sudah kamu buat.',
+                _terkunci
+                    ? 'Terkunci sementara. Coba lagi dalam '
+                        '${_sisaKunci.inSeconds + 1} detik.'
+                    : (_errorMessage ??
+                        'Gunakan PIN 4 angka yang sudah kamu buat.'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: _errorMessage != null
+                  color: _errorMessage != null || _terkunci
                       ? Colors.redAccent
                       : AppColors.textSecondary,
                 ),
@@ -160,7 +220,13 @@ class _PinMasukScreenState extends ConsumerState<PinMasukScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary),
               )
             else
-              _buildKeypad(),
+              Opacity(
+                opacity: _terkunci ? 0.4 : 1,
+                child: IgnorePointer(
+                  ignoring: _terkunci,
+                  child: _buildKeypad(),
+                ),
+              ),
           ],
         ),
       ),

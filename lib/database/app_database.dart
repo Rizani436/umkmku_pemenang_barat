@@ -1,39 +1,60 @@
-﻿import 'package:path/path.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
-
-
-
-
-
-
-
-
+import '../models/pembayaran_kasbon.dart';
+import '../models/tipe_akun.dart';
 
 class AppDatabase {
+  static const versiSkema = 6;
 
   static final AppDatabase _instance = AppDatabase._();
   factory AppDatabase() => _instance;
-  AppDatabase._();
 
-  static Database? _db;
+  AppDatabase._()
+      : _factory = null,
+        _pathOverride = null;
 
-  Future<Database> get database async {
-    _db ??= await _initDatabase();
-    return _db!;
+  /// Instance terpisah (bukan singleton) untuk pengujian, supaya skema dan
+  /// migrasi bisa diverifikasi tanpa plugin sqflite milik perangkat.
+  @visibleForTesting
+  AppDatabase.forTesting({
+    required DatabaseFactory factory,
+    required String path,
+  })  : _factory = factory,
+        _pathOverride = path;
+
+  final DatabaseFactory? _factory;
+  final String? _pathOverride;
+
+  /// Cache Future-nya, bukan Database-nya. Kalau yang di-cache `Database?`,
+  /// dua pemanggil bersamaan bisa sama-sama lolos cek null dan membuka
+  /// database dua kali.
+  Future<Database>? _dbFuture;
+
+  Future<Database> get database {
+    return _dbFuture ??= _initDatabase().catchError((Object e) {
+      // Jangan simpan future yang gagal, supaya percobaan berikutnya
+      // membuka ulang alih-alih mengulang error yang sama selamanya.
+      _dbFuture = null;
+      throw e;
+    });
   }
 
   Future<Database> _initDatabase() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'umkmku_pemenang_barat.db');
-    return openDatabase(
-      path,
-      version: 4,
-      onCreate: _onCreate,
-      onUpgrade: _onUpgrade,
-      onConfigure: (db) async {
+    final factory = _factory ?? databaseFactory;
+    final path =
+        _pathOverride ?? join(await getDatabasesPath(), 'umkmku_pemenang_barat.db');
 
-        await db.execute('PRAGMA foreign_keys = ON');
-      },
+    return factory.openDatabase(
+      path,
+      options: OpenDatabaseOptions(
+        version: versiSkema,
+        onCreate: _onCreate,
+        onUpgrade: _onUpgrade,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+      ),
     );
   }
 
@@ -50,10 +71,78 @@ class AppDatabase {
       await db.execute('ALTER TABLE usaha ADD COLUMN modal_awal REAL NOT NULL DEFAULT 0');
       await db.execute('UPDATE usaha SET modal_awal = kas WHERE modal_awal = 0');
     }
+    if (oldVersion < 5) {
+      await _createIndexes(db);
+    }
+    if (oldVersion < 6) {
+      await db.execute(
+          "ALTER TABLE transaksi ADD COLUMN tipe_akun TEXT NOT NULL DEFAULT '${TipeAkun.operasional}'");
+      await _backfillTipeAkun(db);
+
+      for (final tabel in ['hutang', 'piutang']) {
+        await db.execute(
+            'ALTER TABLE $tabel ADD COLUMN nominal_awal REAL NOT NULL DEFAULT 0');
+        await db.execute(
+            "ALTER TABLE $tabel ADD COLUMN status TEXT NOT NULL DEFAULT '${StatusKasbon.aktif}'");
+        // Kasbon lama tidak menyimpan nominal asli; yang tersisa kita anggap
+        // sebagai nominal awalnya.
+        await db.execute(
+            'UPDATE $tabel SET nominal_awal = nominal WHERE nominal_awal = 0');
+      }
+
+      await _createTabelPembayaranKasbon(db);
+      await _createIndexes(db);
+    }
+  }
+
+  /// Mengisi `tipe_akun` untuk transaksi yang sudah ada, memakai aturan yang
+  /// sama dengan [TipeAkun.dariKategori] tapi dalam bentuk SQL.
+  Future<void> _backfillTipeAkun(Database db) async {
+    Future<void> set(String tipe, String where, List<Object?> args) =>
+        db.update('transaksi', {'tipe_akun': tipe},
+            where: where, whereArgs: args);
+
+    await set(TipeAkun.penjualan, 'jenis_transaksi = ?', ['pemasukan']);
+    await set(
+      TipeAkun.pendapatanLain,
+      "jenis_transaksi = ? AND LOWER(TRIM(kategori)) = 'pendapatan lain'",
+      ['pemasukan'],
+    );
+    await set(TipeAkun.operasional, 'jenis_transaksi = ?', ['pengeluaran']);
+    await set(
+      TipeAkun.hpp,
+      "jenis_transaksi = ? AND LOWER(TRIM(kategori)) "
+          "IN ('kulakan/stok', 'bahan baku', 'kemasan', 'bahan pakai')",
+      ['pengeluaran'],
+    );
+    await set(
+      TipeAkun.pribadi,
+      "jenis_transaksi = ? AND LOWER(TRIM(kategori)) = 'kep. pribadi'",
+      ['pengeluaran'],
+    );
+  }
+
+  Future<void> _createTabelPembayaranKasbon(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pembayaran_kasbon (
+        id          TEXT PRIMARY KEY,
+        id_kasbon   TEXT NOT NULL,
+        jenis       TEXT NOT NULL,
+        nominal     REAL NOT NULL,
+        tgl         TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        id_usaha    TEXT NOT NULL,
+        FOREIGN KEY (id_usaha) REFERENCES usaha(id) ON DELETE CASCADE
+      )
+    ''');
+    // Index-nya dibuat di sini, bukan di _createIndexes(), karena
+    // _createIndexes() juga dipanggil dari jalur upgrade v5 — saat itu
+    // tabel ini belum ada.
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_pembayaran_kasbon ON pembayaran_kasbon(id_kasbon)');
   }
 
   Future<void> _onCreate(Database db, int version) async {
-
     await db.execute('''
       CREATE TABLE akun (
         id          TEXT PRIMARY KEY,
@@ -65,7 +154,9 @@ class AppDatabase {
       )
     ''');
 
-
+    // Catatan: setiap kolom yang ditambahkan lewat ALTER TABLE di _onUpgrade
+    // WAJIB ikut ditulis di sini, kalau tidak install baru akan kehilangan
+    // kolom tersebut (mis. modal_awal sebelum perbaikan ini).
     await db.execute('''
       CREATE TABLE usaha (
         id              TEXT PRIMARY KEY,
@@ -77,13 +168,13 @@ class AppDatabase {
         perlengkapan    REAL NOT NULL DEFAULT 0,
         mesin_peralatan REAL NOT NULL DEFAULT 0,
         gedung          REAL NOT NULL DEFAULT 0,
+        modal_awal      REAL NOT NULL DEFAULT 0,
         id_akun         TEXT NOT NULL,
         created_at      TEXT NOT NULL,
         updated_at      TEXT NOT NULL,
         FOREIGN KEY (id_akun) REFERENCES akun(id) ON DELETE CASCADE
       )
     ''');
-
 
     await db.execute('''
       CREATE TABLE transaksi (
@@ -92,18 +183,20 @@ class AppDatabase {
         kategori        TEXT NOT NULL,
         total           REAL NOT NULL,
         tgl             TEXT NOT NULL,
+        tipe_akun       TEXT NOT NULL DEFAULT 'operasional',
         created_at      TEXT NOT NULL,
         id_usaha        TEXT NOT NULL,
         FOREIGN KEY (id_usaha) REFERENCES usaha(id) ON DELETE CASCADE
       )
     ''');
 
-
     await db.execute('''
       CREATE TABLE hutang (
         id              TEXT PRIMARY KEY,
         nama_toko       TEXT NOT NULL,
         nominal         REAL NOT NULL,
+        nominal_awal    REAL NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'aktif',
         keterangan      TEXT,
         tgl_jatuh_tempo TEXT,
         created_at      TEXT NOT NULL,
@@ -111,7 +204,6 @@ class AppDatabase {
         FOREIGN KEY (id_usaha) REFERENCES usaha(id) ON DELETE CASCADE
       )
     ''');
-
 
     await db.execute('''
       CREATE TABLE piutang (
@@ -119,6 +211,8 @@ class AppDatabase {
         nama_orang      TEXT NOT NULL,
         nomor_hp        TEXT,
         nominal         REAL NOT NULL,
+        nominal_awal    REAL NOT NULL DEFAULT 0,
+        status          TEXT NOT NULL DEFAULT 'aktif',
         keterangan      TEXT,
         tgl_jatuh_tempo TEXT,
         created_at      TEXT NOT NULL,
@@ -126,8 +220,29 @@ class AppDatabase {
         FOREIGN KEY (id_usaha) REFERENCES usaha(id) ON DELETE CASCADE
       )
     ''');
+
+    await _createTabelPembayaranKasbon(db);
+    await _createIndexes(db);
   }
 
+  /// Semua query dashboard & laporan menyaring per id_usaha lalu per tanggal,
+  /// jadi index komposit ini yang dipakai.
+  Future<void> _createIndexes(Database db) async {
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_usaha_akun ON usaha(id_akun)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_transaksi_usaha_tgl ON transaksi(id_usaha, tgl)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_hutang_usaha_tempo ON hutang(id_usaha, tgl_jatuh_tempo)');
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_piutang_usaha_tempo ON piutang(id_usaha, tgl_jatuh_tempo)');
+  }
 
-  Future<void> close() async => _db?.close();
+  Future<void> close() async {
+    final pending = _dbFuture;
+    _dbFuture = null;
+    if (pending == null) return;
+    final db = await pending;
+    await db.close();
+  }
 }

@@ -11,6 +11,8 @@ import 'edit_aset_usaha_screen.dart';
 import 'samakan_uang_laci_screen.dart';
 import 'ubah_pin_screen.dart';
 import 'backup_pulihkan_screen.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class DataWilayahIndonesia {
   static const Map<String, Map<String, Map<String, List<String>>>> provData = {
@@ -143,16 +145,6 @@ class ProfilUsahaScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
-  String _rupiahFormat(double nilai) {
-    final s = nilai.abs().toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(s[i]);
-    }
-    final prefix = nilai < 0 ? '-Rp ' : 'Rp ';
-    return '$prefix${buffer.toString()}';
-  }
 
 
 
@@ -165,9 +157,9 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
 
 
   Future<void> _handleRefresh() async {
-    ref.invalidate(currentUsahaProvider);
+    refreshDataUsaha(ref);
     ref.invalidate(authControllerProvider);
-    ref.invalidate(laporanNeracaProvider);
+    refreshDataUsaha(ref);
     try {
       await Future.wait([
         ref.read(currentUsahaProvider.future),
@@ -187,7 +179,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFFF5A5A),
+            color: AppColors.danger,
           ),
         ),
         content: const Text(
@@ -211,7 +203,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5A5A),
+              backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -375,7 +367,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                           _infoTile(
                             icon: Icons.inventory_2_outlined,
                             label: 'Persediaan',
-                            value: _rupiahFormat(persediaan),
+                            value: formatRupiah(persediaan),
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
@@ -384,7 +376,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                           _infoTile(
                             icon: Icons.precision_manufacturing_outlined,
                             label: 'Mesin & Peralatan',
-                            value: _rupiahFormat(mesinPeralatan),
+                            value: formatRupiah(mesinPeralatan),
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
@@ -393,7 +385,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                           _infoTile(
                             icon: Icons.apartment_outlined,
                             label: 'Gedung / Bangunan',
-                            value: _rupiahFormat(gedung),
+                            value: formatRupiah(gedung),
                           ),
                         ],
                       ),
@@ -546,7 +538,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () => _confirmLogout(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFFF5A5A),
+                          foregroundColor: AppColors.danger,
                           backgroundColor: const Color(0xFFFFF5F5),
                           side: const BorderSide(
                               color: Color(0xFFFFC1C1), width: 1),

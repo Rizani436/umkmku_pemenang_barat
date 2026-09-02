@@ -33,15 +33,5 @@ class CurrencyInputFormatter extends TextInputFormatter {
   }
 }
 
-String formatRibuan(dynamic value) {
-  if (value == null) return '0';
-  final double numVal =
-      (value is num) ? value.toDouble() : (double.tryParse(value.toString().replaceAll('.', '')) ?? 0);
-  final String s = numVal.toStringAsFixed(0);
-  final buffer = StringBuffer();
-  for (int i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buffer.write('.');
-    buffer.write(s[i]);
-  }
-  return buffer.toString();
-}
+// formatRibuan() pindah ke utils/format.dart bersama seluruh fungsi format
+// lainnya. Berkas ini khusus untuk formatter input.

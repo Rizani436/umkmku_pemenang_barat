@@ -5,6 +5,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../providers/laporan_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/format.dart';
 
 class PratinjauLaporanScreen extends StatefulWidget {
   final bool isRugiLaba;
@@ -30,37 +31,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
   bool _isSharing = false;
   bool _isDownloading = false;
 
-  String _rupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final isNegative = nilai < 0;
-    final s = nilai.toInt().abs().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return isNegative ? '-${buf.toString()}' : buf.toString();
-  }
 
-  String _tanggalIndo(DateTime dt) {
-    const bln = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    return '${dt.day} ${bln[dt.month]} ${dt.year}';
-  }
 
   Future<Uint8List> _generatePdfBytes() async {
     final pdf = pw.Document();
@@ -110,7 +81,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        'Periode: ${widget.periode.detailLabel} | Dicetak: ${_tanggalIndo(DateTime.now())}',
+                        'Periode: ${widget.periode.detailLabel} | Dicetak: ${formatTanggalIndo(DateTime.now())}',
                         style: const pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 10,
@@ -144,7 +115,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                             pw.Text('Total Pemasukan',
                                 style: const pw.TextStyle(fontSize: 12)),
                             pw.Text(
-                              _rupiah(data.totalPendapatan),
+                              formatRupiah(data.totalPendapatan),
                               style: pw.TextStyle(
                                 fontSize: 12,
                                 fontWeight: pw.FontWeight.bold,
@@ -164,7 +135,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                             pw.Text('Total Pengeluaran',
                                 style: const pw.TextStyle(fontSize: 12)),
                             pw.Text(
-                              _rupiah(data.totalPengeluaran),
+                              formatRupiah(data.totalPengeluaran),
                               style: pw.TextStyle(
                                 fontSize: 12,
                                 fontWeight: pw.FontWeight.bold,
@@ -190,7 +161,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                               ),
                             ),
                             pw.Text(
-                              _rupiah(data.penghasilanKotor),
+                              formatRupiah(data.penghasilanKotor),
                               style: pw.TextStyle(
                                 fontSize: 14,
                                 fontWeight: pw.FontWeight.bold,
@@ -282,7 +253,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        'Periode: ${widget.periode.detailLabel} | Dicetak: ${_tanggalIndo(DateTime.now())}',
+                        'Periode: ${widget.periode.detailLabel} | Dicetak: ${formatTanggalIndo(DateTime.now())}',
                         style: const pw.TextStyle(
                           color: PdfColors.white,
                           fontSize: 10,
@@ -315,7 +286,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Kas', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.kas), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.kas), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -327,7 +298,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Piutang', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.piutang), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.piutang), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -339,7 +310,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Persediaan', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.persediaan), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.persediaan), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -351,7 +322,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Mesin & Peralatan', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.mesinPeralatan), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.mesinPeralatan), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -363,7 +334,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Gedung', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.gedung), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.gedung), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -376,7 +347,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Total Harta', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                            pw.Text(_rupiah(data.totalHarta), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: primaryColor)),
+                            pw.Text(formatRupiah(data.totalHarta), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: primaryColor)),
                           ],
                         ),
                       ),
@@ -407,7 +378,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Hutang', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.hutang), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.hutang), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -419,7 +390,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Modal', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.modal), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.modal), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -431,7 +402,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Penghasilan Kotor', style: const pw.TextStyle(fontSize: 11)),
-                            pw.Text(_rupiah(data.penghasilanKotor), style: const pw.TextStyle(fontSize: 11)),
+                            pw.Text(formatRupiah(data.penghasilanKotor), style: const pw.TextStyle(fontSize: 11)),
                           ],
                         ),
                       ),
@@ -444,7 +415,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Total Dana', style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                            pw.Text(_rupiah(data.totalDana), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: accentColor)),
+                            pw.Text(formatRupiah(data.totalDana), style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: accentColor)),
                           ],
                         ),
                       ),
@@ -778,11 +749,11 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 ),
               ),
               Text(
-                _rupiah(data.totalPendapatan),
+                formatRupiah(data.totalPendapatan),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1DB57A),
+                  color: AppColors.success,
                 ),
               ),
             ],
@@ -803,11 +774,11 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 ),
               ),
               Text(
-                _rupiah(data.totalPengeluaran),
+                formatRupiah(data.totalPengeluaran),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFFF5A5A),
+                  color: AppColors.danger,
                 ),
               ),
             ],
@@ -834,13 +805,13 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 ),
               ),
               Text(
-                _rupiah(data.penghasilanKotor),
+                formatRupiah(data.penghasilanKotor),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
                   color: data.penghasilanKotor >= 0
                       ? AppColors.primary
-                      : const Color(0xFFFF5A5A),
+                      : AppColors.danger,
                 ),
               ),
             ],
@@ -867,7 +838,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Kas', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.kas), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.kas), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -875,7 +846,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Piutang', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.piutang), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.piutang), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -883,7 +854,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Persediaan', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.persediaan), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.persediaan), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -891,7 +862,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Mesin & Peralatan', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.mesinPeralatan), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.mesinPeralatan), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -899,7 +870,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Gedung', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.gedung), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.gedung), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -907,7 +878,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Total Harta', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(_rupiah(data.totalHarta), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
+            Text(formatRupiah(data.totalHarta), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary)),
           ],
         ),
         const SizedBox(height: 16),
@@ -917,7 +888,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFF5A623),
+            color: AppColors.warning,
           ),
         ),
         const SizedBox(height: 8),
@@ -925,7 +896,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Hutang', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.hutang), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.hutang), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -933,7 +904,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Modal', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.modal), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.modal), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -941,7 +912,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Penghasilan Kotor', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-            Text(_rupiah(data.penghasilanKotor), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(formatRupiah(data.penghasilanKotor), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
           ],
         ),
         const SizedBox(height: 6),
@@ -949,7 +920,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Total Dana', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(_rupiah(data.totalDana), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFF5A623))),
+            Text(formatRupiah(data.totalDana), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.warning)),
           ],
         ),
         const SizedBox(height: 16),
@@ -967,7 +938,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
             children: [
               Icon(
                 data.seimbang ? Icons.check_circle_outline_rounded : Icons.highlight_off_rounded,
-                color: data.seimbang ? const Color(0xFF1DB57A) : const Color(0xFFFF5A5A),
+                color: data.seimbang ? AppColors.success : AppColors.danger,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -976,7 +947,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: data.seimbang ? const Color(0xFF1DB57A) : const Color(0xFFFF5A5A),
+                  color: data.seimbang ? AppColors.success : AppColors.danger,
                 ),
               ),
             ],

@@ -1,18 +1,17 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../database/database_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../providers/session_provider.dart';
-import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class BackupPulihkanScreen extends ConsumerStatefulWidget {
   const BackupPulihkanScreen({super.key});
@@ -42,26 +41,11 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
           _lastBackupDate = saved;
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('Gagal membaca tanggal salinan terakhir: $e\n$st');
+    }
   }
 
-  String _formatIndonesianDate(DateTime dt) {
-    const bulan = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    return '${dt.day} ${bulan[dt.month - 1]} ${dt.year}';
-  }
 
   Future<void> _buatSalinanSekarang() async {
     if (_isBackingUp || _isRestoring) return;
@@ -71,27 +55,27 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
       final appDb = ref.read(appDatabaseProvider);
       final db = await appDb.database;
 
-      final akunList = await db.query('akun');
+      // Tabel `akun` SENGAJA tidak ikut dicadangkan. Isinya nomor HP dan
+      // pin_hash, sedangkan file ini dibagikan lewat share sheet ke WhatsApp,
+      // Drive, atau siapa pun yang dipilih pengguna. PIN hanya 4 angka, jadi
+      // hash yang bocor praktis sama dengan PIN yang bocor. Proses pemulihan
+      // juga tidak membutuhkannya — usaha yang dipulihkan selalu dipasang ke
+      // akun yang sedang masuk.
       final usahaList = await db.query('usaha');
       final transaksiList = await db.query('transaksi');
       final hutangList = await db.query('hutang');
       final piutangList = await db.query('piutang');
-
-      List<Map<String, dynamic>> kasbonList = [];
-      try {
-        kasbonList = await db.query('kasbon');
-      } catch (_) {}
+      final pembayaranList = await db.query('pembayaran_kasbon');
 
       final backupMap = {
         'app': 'UMKM-Ku Pemenang Barat',
-        'version': 1,
+        'version': 3,
         'created_at': DateTime.now().toIso8601String(),
-        'akun': akunList,
         'usaha': usahaList,
         'transaksi': transaksiList,
         'hutang': hutangList,
         'piutang': piutangList,
-        'kasbon': kasbonList,
+        'pembayaran_kasbon': pembayaranList,
       };
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupMap);
@@ -102,48 +86,51 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
           '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
       final fileName = 'UMKMKu_Backup_$dateTag.json';
 
-      bool savedDirectlyToDownload = false;
+      // Dulu file ditulis langsung ke '/storage/emulated/0/Download', path
+      // yang hanya ada di Android, butuh izin penyimpanan yang tidak pernah
+      // diminta, dan sejak Android 10 diblokir scoped storage. Jalur
+      // cadangannya pun memakai Printing.sharePdf() untuk file JSON.
+      //
+      // Sekarang: file ditulis ke folder sementara milik aplikasi (selalu
+      // boleh, di semua platform, dan bisa dibersihkan sistem), lalu
+      // diserahkan ke share sheet supaya pengguna sendiri yang memilih
+      // menyimpannya ke Drive/WhatsApp/Files.
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(jsonBytes);
 
-      try {
-        final downloadDirs = [
-          Directory('/storage/emulated/0/Download'),
-          Directory('/sdcard/Download'),
-        ];
+      final hasil = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/json')],
+          fileNameOverrides: [fileName],
+          subject: 'Salinan data Bisnis-Ku',
+        ),
+      );
+      final tersimpan = hasil.status == ShareResultStatus.success;
 
-        for (final dir in downloadDirs) {
-          if (await dir.exists()) {
-            final targetFile = File('${dir.path}/$fileName');
-            await targetFile.writeAsBytes(jsonBytes);
-            savedDirectlyToDownload = true;
-            break;
-          }
-        }
-      } catch (_) {}
+      final nowStr = formatTanggalIndo(dt);
+      // Tanggal salinan hanya dicatat kalau file benar-benar dibagikan;
+      // kalau share sheet dibatalkan, pengguna belum punya salinan apa pun.
+      if (tersimpan) {
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setString('last_backup_date', nowStr);
 
-      if (!savedDirectlyToDownload) {
-        await Printing.sharePdf(
-          bytes: jsonBytes,
-          filename: fileName,
-        );
+        if (!mounted) return;
+        setState(() {
+          _lastBackupDate = nowStr;
+        });
       }
 
-      final nowStr = _formatIndonesianDate(dt);
-      final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString('last_backup_date', nowStr);
-
-      setState(() {
-        _lastBackupDate = nowStr;
-      });
-
       if (!mounted) return;
-      final msg = savedDirectlyToDownload
-          ? 'File salinan ($fileName) otomatis tersimpan di folder Download HP Anda!'
-          : 'File salinan ($fileName) berhasil dibuat!';
+      final msg = tersimpan
+          ? 'File salinan ($fileName) berhasil dibuat dan dibagikan!'
+          : 'Pembuatan salinan dibatalkan.';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor:
+              tersimpan ? AppColors.success : AppColors.textSecondary,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -229,11 +216,24 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         selectedUsaha = chosen;
       }
 
-      setState(() => _isRestoring = true);
-
       final currentAkun = ref.read(authControllerProvider).value;
       final currentAkunId =
           currentAkun?.id ?? ref.read(sessionServiceProvider).muatIdAkun();
+
+      if (currentAkunId == null || currentAkunId.isEmpty) {
+        throw Exception(
+            'Tidak ada akun yang sedang masuk. Masuk dulu sebelum memulihkan data.');
+      }
+
+      // Memulihkan berarti MENIMPA data usaha yang sekarang. Wajib
+      // dikonfirmasi dulu — sebelumnya langsung jalan tanpa peringatan.
+      final lanjut = await _konfirmasiTimpaData(
+        namaUsaha: '${selectedUsaha['nama_usaha'] ?? 'Usaha'}',
+      );
+      if (lanjut != true) return;
+
+      if (!mounted) return;
+      setState(() => _isRestoring = true);
 
       final selectedUsahaId = selectedUsaha['id'];
 
@@ -252,8 +252,9 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               .toList() ??
           [];
 
-      final filteredKasbon = (backupMap['kasbon'] as List?)
-              ?.where((k) => k['id_usaha'] == selectedUsahaId)
+      // File salinan versi lama (<=2) belum punya kunci ini; anggap kosong.
+      final filteredPembayaran = (backupMap['pembayaran_kasbon'] as List?)
+              ?.where((p) => p['id_usaha'] == selectedUsahaId)
               .toList() ??
           [];
 
@@ -261,40 +262,60 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
       final db = await appDb.database;
 
       await db.transaction((txn) async {
-        await txn.delete('usaha');
-        final mapUsaha = Map<String, dynamic>.from(selectedUsaha);
-        if (currentAkunId != null && currentAkunId.isNotEmpty) {
-          mapUsaha['id_akun'] = currentAkunId;
+        // Hanya menghapus milik akun yang sedang masuk. Sebelumnya
+        // `txn.delete('usaha')` tanpa WHERE ikut menghabiskan data akun lain
+        // di HP yang sama.
+        final usahaMilikAkun = await txn.query(
+          'usaha',
+          columns: ['id'],
+          where: 'id_akun = ?',
+          whereArgs: [currentAkunId],
+        );
+        final idUsahaMilikAkun =
+            usahaMilikAkun.map((r) => r['id'] as String).toList();
+
+        if (idUsahaMilikAkun.isNotEmpty) {
+          final placeholder =
+              List.filled(idUsahaMilikAkun.length, '?').join(',');
+          for (final tabel in [
+            'transaksi',
+            'hutang',
+            'piutang',
+            'pembayaran_kasbon',
+          ]) {
+            await txn.delete(
+              tabel,
+              where: 'id_usaha IN ($placeholder)',
+              whereArgs: idUsahaMilikAkun,
+            );
+          }
+          await txn.delete(
+            'usaha',
+            where: 'id_akun = ?',
+            whereArgs: [currentAkunId],
+          );
         }
+
+        final mapUsaha = Map<String, dynamic>.from(selectedUsaha);
+        mapUsaha['id_akun'] = currentAkunId;
         await txn.insert('usaha', mapUsaha);
 
-        await txn.delete('transaksi');
-        for (var item in filteredTransaksi) {
+        for (final item in filteredTransaksi) {
           await txn.insert('transaksi', Map<String, dynamic>.from(item));
         }
-
-        await txn.delete('hutang');
-        for (var item in filteredHutang) {
+        for (final item in filteredHutang) {
           await txn.insert('hutang', Map<String, dynamic>.from(item));
         }
-
-        await txn.delete('piutang');
-        for (var item in filteredPiutang) {
+        for (final item in filteredPiutang) {
           await txn.insert('piutang', Map<String, dynamic>.from(item));
         }
-
-        try {
-          await txn.delete('kasbon');
-          for (var item in filteredKasbon) {
-            await txn.insert('kasbon', Map<String, dynamic>.from(item));
-          }
-        } catch (_) {}
+        for (final item in filteredPembayaran) {
+          await txn.insert(
+              'pembayaran_kasbon', Map<String, dynamic>.from(item));
+        }
       });
 
-      ref.invalidate(currentUsahaProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       final nama = selectedUsaha['nama_usaha'] ?? 'Usaha';
@@ -303,7 +324,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         SnackBar(
           content: Text(
               'Berhasil memulihkan data "$nama"$fileLabel ke akun Anda!'),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -320,6 +341,34 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         setState(() => _isRestoring = false);
       }
     }
+  }
+
+  /// Pemulihan bersifat menimpa dan tidak bisa dibatalkan, jadi minta
+  /// persetujuan eksplisit dulu.
+  Future<bool?> _konfirmasiTimpaData({required String namaUsaha}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Timpa data saat ini?'),
+        content: Text(
+          'Seluruh transaksi, hutang, dan piutang usaha Anda yang tersimpan '
+          'sekarang akan DIHAPUS dan diganti dengan data "$namaUsaha" dari '
+          'file salinan.\n\nTindakan ini tidak dapat dibatalkan. Sebaiknya '
+          'buat salinan terbaru dulu sebelum melanjutkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Ya, timpa'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<Map<String, dynamic>?> _showSelectUsahaDialog(
@@ -371,7 +420,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? const Color(0xFF5B4FDD)
+                                    ? AppColors.primary
                                     : const Color(0xFFE5E7EB),
                                 width: isSelected ? 1.5 : 1.0,
                               ),
@@ -392,7 +441,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                           ? Icons.radio_button_checked_rounded
                                           : Icons.radio_button_off_rounded,
                                       color: isSelected
-                                          ? const Color(0xFF5B4FDD)
+                                          ? AppColors.primary
                                           : const Color(0xFF9CA3AF),
                                       size: 20,
                                     ),
@@ -441,7 +490,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, selected),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5B4FDD),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -518,7 +567,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               _restoreFromRawJson(rawJson);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5B4FDD),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -600,7 +649,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                 ),
                                 child: const Icon(
                                   Icons.cloud_download_rounded,
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                   size: 24,
                                 ),
                               ),
@@ -646,7 +695,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                 const Icon(
                                   Icons.history_rounded,
                                   size: 16,
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -670,7 +719,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                   ? null
                                   : _buatSalinanSekarang,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF5B4FDD),
+                                backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -734,7 +783,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                 ),
                                 child: const Icon(
                                   Icons.folder_rounded,
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                   size: 24,
                                 ),
                               ),
@@ -775,9 +824,9 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                   ? null
                                   : _pilihFileSalinan,
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF5B4FDD),
+                                foregroundColor: AppColors.primary,
                                 side: const BorderSide(
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                   width: 1.5,
                                 ),
                                 shape: RoundedRectangleBorder(
@@ -790,7 +839,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Color(0xFF5B4FDD),
+                                        color: AppColors.primary,
                                       ),
                                     )
                                   : const Icon(

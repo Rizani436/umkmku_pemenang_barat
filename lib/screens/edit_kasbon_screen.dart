@@ -1,15 +1,14 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/kasbon_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class EditKasbonScreen extends ConsumerStatefulWidget {
   final Hutang? hutang;
@@ -72,25 +71,6 @@ class _EditKasbonScreenState extends ConsumerState<EditKasbonScreen> {
     super.dispose();
   }
 
-  String _formatTanggalIndo(DateTime dt) {
-    const bulan = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    final dd = dt.day.toString().padLeft(2, '0');
-    return '$dd ${bulan[dt.month]} ${dt.year}';
-  }
 
   Future<void> _pilihTanggalJatuhTempo() async {
     final picked = await showDatePicker(
@@ -168,17 +148,14 @@ class _EditKasbonScreenState extends ConsumerState<EditKasbonScreen> {
             );
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$_title berhasil diperbarui! ✨'),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -376,7 +353,7 @@ class _EditKasbonScreenState extends ConsumerState<EditKasbonScreen> {
                                       const SizedBox(width: 12),
                                       Text(
                                         _tglJatuhTempo != null
-                                            ? _formatTanggalIndo(_tglJatuhTempo!)
+                                            ? formatTanggalIndo(_tglJatuhTempo!, padHari: true)
                                             : 'Pilih Tanggal Jatuh Tempo',
                                         style: TextStyle(
                                           fontSize: 14,

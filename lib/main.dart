@@ -34,8 +34,22 @@ class BisnisKuApp extends StatelessWidget {
       title: 'Bisnis-Ku',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primaryColor: AppColors.primary,
         useMaterial3: true,
+        // Poppins sudah ikut di-bundle lewat pubspec.yaml tapi sebelumnya
+        // tidak pernah dipasang di theme, jadi tidak pernah terpakai.
+        fontFamily: 'Poppins',
+        primaryColor: AppColors.primary,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          error: AppColors.danger,
+          surface: AppColors.surface,
+        ),
+        scaffoldBackgroundColor: AppColors.background,
+        snackBarTheme: const SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          contentTextStyle: TextStyle(color: AppColors.textOnPrimary),
+        ),
       ),
       home: const _AuthGate(),
     );
@@ -74,7 +88,7 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: Color(0xFF5B4FDD),
+      backgroundColor: AppColors.primary,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

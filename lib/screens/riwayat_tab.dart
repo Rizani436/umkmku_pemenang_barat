@@ -1,39 +1,22 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/transaksi.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
 import '../models/kategori_transaksi.dart';
 import '../models/riwayat_item_model.dart';
+import '../providers/kasbon_provider.dart';
 import '../providers/riwayat_provider.dart';
-import '../providers/auth_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../repositories/hutang_repository.dart';
-import '../repositories/piutang_repository.dart';
-import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
 import 'detail_transaksi_screen.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
-final riwayatHutangProvider = FutureProvider<List<Hutang>>((ref) async {
-  final akun = ref.watch(authControllerProvider).value;
-  if (akun == null) return [];
-  final usaha = await ref.read(usahaRepositoryProvider).getUsahaByAkun(akun.id);
-  if (usaha == null) return [];
-  return ref.read(hutangRepositoryProvider).getByUsaha(usaha.id);
-});
 
-final riwayatPiutangProvider = FutureProvider<List<Piutang>>((ref) async {
-  final akun = ref.watch(authControllerProvider).value;
-  if (akun == null) return [];
-  final usaha = await ref.read(usahaRepositoryProvider).getUsahaByAkun(akun.id);
-  if (usaha == null) return [];
-  return ref.read(piutangRepositoryProvider).getByUsaha(usaha.id);
-});
-
-const _colorMasuk   = Color(0xFF1DB57A);
-const _colorKeluar  = Color(0xFFFF5A5A);
-const _colorHutang  = Color(0xFFFF5A5A);
-const _colorPiutang = Color(0xFFF5A623);
+const _colorMasuk   = AppColors.success;
+const _colorKeluar  = AppColors.danger;
+const _colorHutang  = AppColors.danger;
+const _colorPiutang = AppColors.warning;
 IconData _iconDariKategori(String label) {
   for (final sektor in SektorUsaha.values) {
     for (final item in KategoriTransaksi.masuk(sektor)) {
@@ -46,30 +29,17 @@ IconData _iconDariKategori(String label) {
   return Icons.receipt_long_outlined;
 }
 
-String _rupiah(double nilai) {
-  if (nilai == 0) return 'Rp 0';
-  final s = nilai.toInt().toString();
-  final buf = StringBuffer('Rp ');
-  final off = s.length % 3;
-  for (int i = 0; i < s.length; i++) {
-    if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-    buf.write(s[i]);
-  }
-  return buf.toString();
-}
 
 String _labelGrup(DateTime tgl) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);
   final d = DateTime(tgl.year, tgl.month, tgl.day);
   final diff = today.difference(d).inDays;
-  const bln = [
-    '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-    'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des',
-  ];
-  if (diff == 0) return 'Hari Ini, ${d.day} ${bln[d.month]} ${d.year}';
-  if (diff == 1) return 'Kemarin, ${d.day} ${bln[d.month]} ${d.year}';
-  return '${d.day} ${bln[d.month]} ${d.year}';
+  final tanggal =
+      '${d.day} ${namaBulanIndoSingkat[d.month]} ${d.year}';
+  if (diff == 0) return 'Hari Ini, $tanggal';
+  if (diff == 1) return 'Kemarin, $tanggal';
+  return tanggal;
 }
 
 enum _Filter { semua, pemasukan, pengeluaran, hutang, piutang }
@@ -148,8 +118,8 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
   @override
   Widget build(BuildContext context) {
     final riwayatAsync   = ref.watch(riwayatProvider);
-    final hutangAsync    = ref.watch(riwayatHutangProvider);
-    final piutangAsync   = ref.watch(riwayatPiutangProvider);
+    final hutangAsync    = ref.watch(hutangListProvider);
+    final piutangAsync   = ref.watch(piutangListProvider);
 
     if (riwayatAsync.isLoading || hutangAsync.isLoading || piutangAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -203,7 +173,7 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
         final namaMatch = item.nama.toLowerCase().contains(q);
         final ketMatch = item.keterangan?.toLowerCase().contains(q) ?? false;
         final nominalMatch = item.nominal.toInt().toString().contains(q) ||
-            _rupiah(item.nominal).toLowerCase().contains(q);
+            formatRupiah(item.nominal).toLowerCase().contains(q);
         return namaMatch || ketMatch || nominalMatch;
       }).toList();
     }
@@ -216,9 +186,7 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(riwayatProvider);
-        ref.invalidate(riwayatHutangProvider);
-        ref.invalidate(riwayatPiutangProvider);
+        refreshDataUsaha(ref);
       },
       color: AppColors.primary,
       child: Column(
@@ -685,10 +653,10 @@ class _RiwayatItemTile extends ConsumerWidget {
       };
 
   String get _nilaiText => switch (item.tipe) {
-        TipeRiwayat.pemasukan   => '+ ${_rupiah(item.nominal)}',
-        TipeRiwayat.pengeluaran => '- ${_rupiah(item.nominal)}',
-        TipeRiwayat.hutang      => _rupiah(item.nominal),
-        TipeRiwayat.piutang     => _rupiah(item.nominal),
+        TipeRiwayat.pemasukan   => '+ ${formatRupiah(item.nominal)}',
+        TipeRiwayat.pengeluaran => '- ${formatRupiah(item.nominal)}',
+        TipeRiwayat.hutang      => formatRupiah(item.nominal),
+        TipeRiwayat.piutang     => formatRupiah(item.nominal),
       };
 
   String get _badgeLabel => switch (item.tipe) {
@@ -709,10 +677,7 @@ class _RiwayatItemTile extends ConsumerWidget {
           ),
         );
         if (result == true) {
-          ref.invalidate(dashboardSummaryProvider);
-          ref.invalidate(riwayatProvider);
-          ref.invalidate(riwayatHutangProvider);
-          ref.invalidate(riwayatPiutangProvider);
+          refreshDataUsaha(ref);
         }
       },
       borderRadius: BorderRadius.circular(16),

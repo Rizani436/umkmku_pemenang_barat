@@ -1,6 +1,4 @@
-﻿import 'package:flutter/material.dart';
-
-
+import 'package:flutter/material.dart';
 
 class AppColors {
   AppColors._();
@@ -13,6 +11,11 @@ class AppColors {
 
   static const Color textOnPrimary = Colors.white;
 
+  /// Warna status. Sebelumnya nilai-nilai ini ditulis langsung sebagai
+  /// `Color(0xFF...)` di puluhan tempat: hijau 34x, merah 33x, oranye 11x.
+  static const Color success = Color(0xFF1DB57A);
+  static const Color danger = Color(0xFFFF5A5A);
+  static const Color warning = Color(0xFFF5A623);
 
   static const Color background = Color(0xFFF3F1FB);
   static const Color surface = Colors.white;
@@ -24,6 +27,6 @@ class AppColors {
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF5B4FDD), Color(0xFF6F63EA)],
+    colors: [primary, Color(0xFF6F63EA)],
   );
 }

@@ -112,6 +112,25 @@ class AuthRepository {
     );
   }
 
+  /// Mencocokkan PIN dengan hash milik [idAkun].
+  /// Dipakai sebagai gerbang sebelum mengganti PIN, supaya orang yang
+  /// kebetulan memegang HP saat sesi terbuka tidak bisa mengunci pemiliknya.
+  Future<bool> verifikasiPin({
+    required String idAkun,
+    required String pin,
+  }) async {
+    final db = await _db.database;
+    final rows = await db.query(
+      'akun',
+      columns: ['pin_hash'],
+      where: 'id = ?',
+      whereArgs: [idAkun],
+      limit: 1,
+    );
+    if (rows.isEmpty) return false;
+    return _verifyPin(pin, rows.first['pin_hash'] as String);
+  }
+
   Future<void> updatePin({
     required String idAkun,
     required String pinBaru,

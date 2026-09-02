@@ -1,19 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/kategori_transaksi.dart';
 import '../providers/usaha_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
 import '../repositories/transaksi_repository.dart';
 import '../theme/app_colors.dart';
 import 'transaksi_sukses_screen.dart';
 
 import '../models/transaksi.dart';
-import '../providers/riwayat_provider.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
-const _colorMasuk = Color(0xFF1DB57A);
-const _colorKeluar = Color(0xFFFF5A5A);
+const _colorMasuk = AppColors.success;
+const _colorKeluar = AppColors.danger;
 
 class TambahTransaksiScreen extends ConsumerStatefulWidget {
   final Transaksi? transaksiToEdit;
@@ -81,17 +80,6 @@ class _TambahTransaksiScreenState
     super.dispose();
   }
 
-  String _formatRupiah(int nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   void _onDigit(String d) {
     if (_angka.length >= 13) return;
@@ -145,9 +133,7 @@ class _TambahTransaksiScreenState
               kategori: kategori,
               total: _nilai.toDouble(),
             );
-        ref.invalidate(dashboardSummaryProvider);
-        ref.invalidate(riwayatProvider);
-        ref.invalidate(laporanNeracaProvider);
+        refreshDataUsaha(ref);
         if (!mounted) return;
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -164,8 +150,7 @@ class _TambahTransaksiScreenState
               total: _nilai.toDouble(),
             );
 
-        ref.invalidate(dashboardSummaryProvider);
-        ref.invalidate(laporanNeracaProvider);
+        refreshDataUsaha(ref);
 
         if (!mounted) return;
         Navigator.of(context).pushReplacement(
@@ -410,7 +395,7 @@ class _TambahTransaksiScreenState
               transitionBuilder: (child, anim) =>
                   FadeTransition(opacity: anim, child: child),
               child: Text(
-                _formatRupiah(_nilai),
+                formatRupiah(_nilai),
                 key: ValueKey(_nilai),
                 style: TextStyle(
                   fontSize: 28,

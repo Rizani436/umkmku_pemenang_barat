@@ -1,11 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/laporan_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
+import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class EditAsetUsahaScreen extends ConsumerStatefulWidget {
   final String idUsaha;
@@ -52,33 +53,13 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
     super.dispose();
   }
 
-  String _formatRupiah(String rawVal) {
-    final clean = rawVal.replaceAll('.', '').replaceAll(',', '').trim();
-    final val = double.tryParse(clean) ?? 0;
-    return _formatRupiahValue(val);
-  }
 
-  String _formatRupiahValue(double val) {
-    final s = val.toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(s[i]);
-    }
-    return 'Rp ${buffer.toString()}';
-  }
 
   Future<void> _simpanAset() async {
-    final rawPersediaan = double.tryParse(
-            _persediaanCtrl.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-        0;
+    final rawPersediaan = parseNominalInput(_persediaanCtrl.text);
 
-    final mesinPeralatan = double.tryParse(
-            _mesinPeralatanCtrl.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-        0;
-    final gedung = double.tryParse(
-            _gedungCtrl.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-        0;
+    final mesinPeralatan = parseNominalInput(_mesinPeralatanCtrl.text);
+    final gedung = parseNominalInput(_gedungCtrl.text);
 
     setState(() => _isSaving = true);
 
@@ -99,14 +80,13 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
             );
       }
 
-      ref.invalidate(currentUsahaProvider);
-      ref.invalidate(laporanNeracaProvider);
+      refreshDataUsaha(ref);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Nilai aset usaha berhasil diperbarui!'),
-            backgroundColor: Color(0xFF1DB57A),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -234,7 +214,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isSaving ? null : _simpanAset,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5B4FDD),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -298,7 +278,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                 ),
               ),
               Text(
-                'Saat ini: ${_formatRupiahValue(widget.currentPersediaan)}',
+                'Saat ini: ${formatRupiah(widget.currentPersediaan)}',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -324,7 +304,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
             decoration: InputDecoration(
               hintText: 'Masukkan nominal tambahan stok',
               prefixIcon: const Icon(Icons.add_shopping_cart_rounded,
-                  size: 20, color: Color(0xFF1DB57A)),
+                  size: 20, color: AppColors.success),
               filled: true,
               fillColor: Colors.white,
               contentPadding:
@@ -336,7 +316,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: Color(0xFF1DB57A), width: 1.5),
+                    const BorderSide(color: AppColors.success, width: 1.5),
               ),
             ),
           ),
@@ -345,9 +325,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _persediaanCtrl,
             builder: (context, value, _) {
-              final rawVal = double.tryParse(
-                      value.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-                  0;
+              final rawVal = parseNominalInput(value.text);
               final double totalAkhir = widget.currentPersediaan + rawVal;
 
               return Container(
@@ -372,11 +350,11 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _formatRupiahValue(totalAkhir),
+                      formatRupiah(totalAkhir),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1DB57A),
+                        color: AppColors.success,
                       ),
                     ),
                   ],
@@ -452,7 +430,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 4),
                     child: Text(
-                      _formatRupiah(value.text),
+                      formatRupiah(parseNominalInput(value.text)),
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
