@@ -11,6 +11,7 @@ import 'transaksi_sukses_screen.dart';
 
 import '../models/transaksi.dart';
 import '../providers/riwayat_provider.dart';
+import '../utils/format.dart';
 
 const _colorMasuk = Color(0xFF1DB57A);
 const _colorKeluar = Color(0xFFFF5A5A);
@@ -81,17 +82,6 @@ class _TambahTransaksiScreenState
     super.dispose();
   }
 
-  String _formatRupiah(int nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   void _onDigit(String d) {
     if (_angka.length >= 13) return;
@@ -410,7 +400,7 @@ class _TambahTransaksiScreenState
               transitionBuilder: (child, anim) =>
                   FadeTransition(opacity: anim, child: child),
               child: Text(
-                _formatRupiah(_nilai),
+                formatRupiah(_nilai),
                 key: ValueKey(_nilai),
                 style: TextStyle(
                   fontSize: 28,

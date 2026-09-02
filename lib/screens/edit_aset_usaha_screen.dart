@@ -6,6 +6,7 @@ import '../providers/usaha_provider.dart';
 import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
+import '../utils/format.dart';
 
 class EditAsetUsahaScreen extends ConsumerStatefulWidget {
   final String idUsaha;
@@ -52,33 +53,13 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
     super.dispose();
   }
 
-  String _formatRupiah(String rawVal) {
-    final clean = rawVal.replaceAll('.', '').replaceAll(',', '').trim();
-    final val = double.tryParse(clean) ?? 0;
-    return _formatRupiahValue(val);
-  }
 
-  String _formatRupiahValue(double val) {
-    final s = val.toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(s[i]);
-    }
-    return 'Rp ${buffer.toString()}';
-  }
 
   Future<void> _simpanAset() async {
-    final rawPersediaan = double.tryParse(
-            _persediaanCtrl.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-        0;
+    final rawPersediaan = parseNominalInput(_persediaanCtrl.text);
 
-    final mesinPeralatan = double.tryParse(
-            _mesinPeralatanCtrl.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-        0;
-    final gedung = double.tryParse(
-            _gedungCtrl.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-        0;
+    final mesinPeralatan = parseNominalInput(_mesinPeralatanCtrl.text);
+    final gedung = parseNominalInput(_gedungCtrl.text);
 
     setState(() => _isSaving = true);
 
@@ -298,7 +279,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                 ),
               ),
               Text(
-                'Saat ini: ${_formatRupiahValue(widget.currentPersediaan)}',
+                'Saat ini: ${formatRupiah(widget.currentPersediaan)}',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -345,9 +326,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
           ValueListenableBuilder<TextEditingValue>(
             valueListenable: _persediaanCtrl,
             builder: (context, value, _) {
-              final rawVal = double.tryParse(
-                      value.text.replaceAll('.', '').replaceAll(',', '').trim()) ??
-                  0;
+              final rawVal = parseNominalInput(value.text);
               final double totalAkhir = widget.currentPersediaan + rawVal;
 
               return Container(
@@ -372,7 +351,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      _formatRupiahValue(totalAkhir),
+                      formatRupiah(totalAkhir),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -452,7 +431,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: 4, left: 4),
                     child: Text(
-                      _formatRupiah(value.text),
+                      formatRupiah(parseNominalInput(value.text)),
                       style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,

@@ -11,6 +11,7 @@ import 'edit_aset_usaha_screen.dart';
 import 'samakan_uang_laci_screen.dart';
 import 'ubah_pin_screen.dart';
 import 'backup_pulihkan_screen.dart';
+import '../utils/format.dart';
 
 class DataWilayahIndonesia {
   static const Map<String, Map<String, Map<String, List<String>>>> provData = {
@@ -143,16 +144,6 @@ class ProfilUsahaScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
-  String _rupiahFormat(double nilai) {
-    final s = nilai.abs().toStringAsFixed(0);
-    final buffer = StringBuffer();
-    for (int i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buffer.write('.');
-      buffer.write(s[i]);
-    }
-    final prefix = nilai < 0 ? '-Rp ' : 'Rp ';
-    return '$prefix${buffer.toString()}';
-  }
 
 
 
@@ -375,7 +366,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                           _infoTile(
                             icon: Icons.inventory_2_outlined,
                             label: 'Persediaan',
-                            value: _rupiahFormat(persediaan),
+                            value: formatRupiah(persediaan),
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
@@ -384,7 +375,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                           _infoTile(
                             icon: Icons.precision_manufacturing_outlined,
                             label: 'Mesin & Peralatan',
-                            value: _rupiahFormat(mesinPeralatan),
+                            value: formatRupiah(mesinPeralatan),
                           ),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 12),
@@ -393,7 +384,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                           _infoTile(
                             icon: Icons.apartment_outlined,
                             label: 'Gedung / Bangunan',
-                            value: _rupiahFormat(gedung),
+                            value: formatRupiah(gedung),
                           ),
                         ],
                       ),

@@ -9,6 +9,7 @@ import '../repositories/piutang_repository.dart';
 import '../theme/app_colors.dart';
 import 'tambah_transaksi_screen.dart';
 import 'riwayat_tab.dart';
+import '../utils/format.dart';
 
 class DetailTransaksiScreen extends ConsumerStatefulWidget {
   final RiwayatItemModel item;
@@ -52,38 +53,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
         TipeRiwayat.piutang => 'Total Piutang',
       };
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
-  String _formatTanggalDetail(DateTime dt) {
-    const bulan = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    final jam = dt.hour.toString().padLeft(2, '0');
-    final menit = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} ${bulan[dt.month]} ${dt.year}, $jam:$menit WIB';
-  }
 
   Future<void> _konfirmasiHapus() async {
     final setuju = await showDialog<bool>(
@@ -408,7 +378,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
           const SizedBox(height: 6),
 
           Text(
-            _formatRupiah(_currentItem.nominal),
+            formatRupiah(_currentItem.nominal),
             style: TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -477,7 +447,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            _formatTanggalDetail(_currentItem.tanggal),
+            formatTanggalJamIndo(_currentItem.tanggal),
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,

@@ -14,6 +14,7 @@ import '../repositories/transaksi_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
 import 'edit_kasbon_screen.dart';
+import '../utils/format.dart';
 
 class DetailKasbonScreen extends ConsumerStatefulWidget {
   final Hutang? hutang;
@@ -43,37 +44,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
       _isPiutang ? widget.piutang!.tglJatuhTempo : widget.hutang!.tglJatuhTempo;
   DateTime get _createdAt => _isPiutang ? widget.piutang!.createdAt : widget.hutang!.createdAt;
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
-  String _formatTanggalIndo(DateTime dt) {
-    const bulan = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    final dd = dt.day.toString().padLeft(2, '0');
-    return '$dd ${bulan[dt.month]} ${dt.year}';
-  }
 
   Future<void> _konfirmasiHapus() async {
     final setuju = await showDialog<bool>(
@@ -170,7 +141,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                   children: [
                     Text('Nama: $_nama', style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 4),
-                    Text('Sisa Saat Ini: ${_formatRupiah(sisaPiutang)}',
+                    Text('Sisa Saat Ini: ${formatRupiah(sisaPiutang)}',
                         style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                     const SizedBox(height: 16),
                     const Text('Nominal Pembayaran / Cicilan:',
@@ -222,7 +193,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                             child: Text(
                               inputVal >= sisaPiutang
                                   ? 'Akan LUNAS sepenuhnya!'
-                                  : 'Sisa setelah cicil: ${_formatRupiah(sisaSetelahCicil)}',
+                                  : 'Sisa setelah cicil: ${formatRupiah(sisaSetelahCicil)}',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -324,7 +295,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
 
       final msg = nominalCicilan >= sisaPiutang
           ? '$_title atas nama "$_nama" berhasil LUNAS! 🎉'
-          : 'Cicilan ${_formatRupiah(nominalCicilan)} berhasil dicatat! Sisa: ${_formatRupiah(sisaPiutang - nominalCicilan)}';
+          : 'Cicilan ${formatRupiah(nominalCicilan)} berhasil dicatat! Sisa: ${formatRupiah(sisaPiutang - nominalCicilan)}';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -539,7 +510,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
           const SizedBox(height: 6),
 
           Text(
-            _formatRupiah(_nominal),
+            formatRupiah(_nominal),
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
@@ -554,8 +525,8 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
 
   Widget _buildDetailInfoCard() {
     final tglJatuhTempoStr = _tglJatuhTempo != null
-        ? _formatTanggalIndo(_tglJatuhTempo!)
-        : _formatTanggalIndo(_createdAt);
+        ? formatTanggalIndo(_tglJatuhTempo!, padHari: true)
+        : formatTanggalIndo(_createdAt, padHari: true);
 
     return Container(
       width: double.infinity,

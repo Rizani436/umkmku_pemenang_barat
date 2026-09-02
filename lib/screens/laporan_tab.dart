@@ -5,20 +5,9 @@ import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
 import 'pratinjau_laporan_screen.dart';
 import 'edit_aset_usaha_screen.dart';
+import '../utils/format.dart';
 
 
-String _rupiah(double nilai) {
-  if (nilai == 0) return 'Rp 0';
-  final isNegative = nilai < 0;
-  final s = nilai.toInt().abs().toString();
-  final buf = StringBuffer('Rp ');
-  final off = s.length % 3;
-  for (int i = 0; i < s.length; i++) {
-    if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-    buf.write(s[i]);
-  }
-  return isNegative ? '-${buf.toString()}' : buf.toString();
-}
 
 
 enum _TabLaporan { rugiLaba, neraca }
@@ -331,20 +320,6 @@ class _PeriodeBottomSheetState extends ConsumerState<_PeriodeBottomSheet> {
   late int _selectedMonth;
   late int _selectedYear;
 
-  final List<String> _namaBulan = const [
-    'Januari',
-    'Februari',
-    'Maret',
-    'April',
-    'Mei',
-    'Juni',
-    'Juli',
-    'Agustus',
-    'September',
-    'Oktober',
-    'November',
-    'Desember',
-  ];
 
   @override
   void initState() {
@@ -563,7 +538,7 @@ class _PeriodeBottomSheetState extends ConsumerState<_PeriodeBottomSheet> {
                 ),
                 alignment: Alignment.center,
                 child: Text(
-                  _namaBulan[index],
+                  namaBulanIndo[monthNum],
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
@@ -781,7 +756,7 @@ class _RugiLabaCard extends StatelessWidget {
       ),
       const SizedBox(height: 6),
       Text(
-        _rupiah(laporan.penghasilanKotor),
+        formatRupiah(laporan.penghasilanKotor),
         textAlign: TextAlign.right,
         style: TextStyle(
           fontSize: 30,
@@ -1009,7 +984,7 @@ class _SeksiNeraca extends StatelessWidget {
                     ),
                     const Spacer(),
                     Text(
-                      _rupiah(row.nilai),
+                      formatRupiah(row.nilai),
                       style: const TextStyle(
                         fontSize: 14,
                         color: AppColors.textPrimary,
@@ -1035,7 +1010,7 @@ class _SeksiNeraca extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                _rupiah(totalNilai),
+                formatRupiah(totalNilai),
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
@@ -1161,7 +1136,7 @@ class _RowItem extends StatelessWidget {
           ),
         ),
         Text(
-          _rupiah(nilai),
+          formatRupiah(nilai),
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.bold,

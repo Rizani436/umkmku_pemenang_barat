@@ -13,6 +13,7 @@ import '../providers/riwayat_provider.dart';
 import '../providers/session_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/format.dart';
 
 class BackupPulihkanScreen extends ConsumerStatefulWidget {
   const BackupPulihkanScreen({super.key});
@@ -47,23 +48,6 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
     }
   }
 
-  String _formatIndonesianDate(DateTime dt) {
-    const bulan = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
-    return '${dt.day} ${bulan[dt.month - 1]} ${dt.year}';
-  }
 
   Future<void> _buatSalinanSekarang() async {
     if (_isBackingUp || _isRestoring) return;
@@ -131,7 +115,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         );
       }
 
-      final nowStr = _formatIndonesianDate(dt);
+      final nowStr = formatTanggalIndo(dt);
       final prefs = ref.read(sharedPreferencesProvider);
       await prefs.setString('last_backup_date', nowStr);
 

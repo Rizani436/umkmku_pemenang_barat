@@ -6,6 +6,7 @@ import '../providers/usaha_provider.dart';
 import '../repositories/transaksi_repository.dart';
 import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
+import '../utils/format.dart';
 
 class SamakanUangLaciScreen extends ConsumerStatefulWidget {
   final String idUsaha;
@@ -79,18 +80,6 @@ class _SamakanUangLaciScreenState
     });
   }
 
-  String _formatDisplay(String raw) {
-    final nilai = double.tryParse(raw) ?? 0;
-    if (nilai == 0) return '0';
-    final s = nilai.toInt().abs().toString();
-    final buf = StringBuffer();
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   Future<void> _sesuaikanSaldo() async {
     final inputKas = double.tryParse(_inputNominal) ?? 0;
@@ -120,7 +109,7 @@ class _SamakanUangLaciScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'Saldo uang laci berhasil diselaraskan menjadi Rp ${_formatDisplay(_inputNominal)}'),
+                'Saldo uang laci berhasil diselaraskan menjadi Rp ${formatRibuan(parseNominalInput(_inputNominal))}'),
             backgroundColor: const Color(0xFF1DB57A),
           ),
         );
@@ -144,7 +133,7 @@ class _SamakanUangLaciScreenState
 
   @override
   Widget build(BuildContext context) {
-    final displayFormatted = _formatDisplay(_inputNominal);
+    final displayFormatted = formatRibuan(parseNominalInput(_inputNominal));
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FF),

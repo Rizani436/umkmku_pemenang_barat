@@ -2,39 +2,10 @@
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../providers/laporan_provider.dart';
+import '../utils/format.dart';
 
 class PdfLaporanService {
-  static String _rupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final isNegative = nilai < 0;
-    final s = nilai.toInt().abs().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return isNegative ? '-${buf.toString()}' : buf.toString();
-  }
 
-  static String _tanggalIndo(DateTime dt) {
-    const bln = [
-      '',
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    return '${dt.day} ${bln[dt.month]} ${dt.year}';
-  }
 
   static Future<void> cetakRugiLaba({
     required String namaUsaha,
@@ -84,7 +55,7 @@ class PdfLaporanService {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'Periode: ${periode.detailLabel} | Dicetak: ${_tanggalIndo(DateTime.now())}',
+                      'Periode: ${periode.detailLabel} | Dicetak: ${formatTanggalIndo(DateTime.now())}',
                       style: const pw.TextStyle(
                         color: PdfColors.white,
                         fontSize: 10,
@@ -121,7 +92,7 @@ class PdfLaporanService {
                           pw.Text('Total Pendapatan',
                               style: const pw.TextStyle(fontSize: 12)),
                           pw.Text(
-                            _rupiah(data.totalPendapatan),
+                            formatRupiah(data.totalPendapatan),
                             style: pw.TextStyle(
                               fontSize: 12,
                               fontWeight: pw.FontWeight.bold,
@@ -142,7 +113,7 @@ class PdfLaporanService {
                           pw.Text('Total Pengeluaran',
                               style: const pw.TextStyle(fontSize: 12)),
                           pw.Text(
-                            _rupiah(data.totalPengeluaran),
+                            formatRupiah(data.totalPengeluaran),
                             style: pw.TextStyle(
                               fontSize: 12,
                               fontWeight: pw.FontWeight.bold,
@@ -169,7 +140,7 @@ class PdfLaporanService {
                             ),
                           ),
                           pw.Text(
-                            _rupiah(data.penghasilanKotor),
+                            formatRupiah(data.penghasilanKotor),
                             style: pw.TextStyle(
                               fontSize: 14,
                               fontWeight: pw.FontWeight.bold,
@@ -282,7 +253,7 @@ class PdfLaporanService {
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'Periode: ${periode.detailLabel} | Dicetak: ${_tanggalIndo(DateTime.now())}',
+                      'Periode: ${periode.detailLabel} | Dicetak: ${formatTanggalIndo(DateTime.now())}',
                       style: const pw.TextStyle(
                         color: PdfColors.white,
                         fontSize: 10,
@@ -318,7 +289,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Kas',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.kas),
+                          pw.Text(formatRupiah(data.kas),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -332,7 +303,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Piutang',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.piutang),
+                          pw.Text(formatRupiah(data.piutang),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -346,7 +317,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Persediaan',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.persediaan),
+                          pw.Text(formatRupiah(data.persediaan),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -360,7 +331,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Mesin & Peralatan',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.mesinPeralatan),
+                          pw.Text(formatRupiah(data.mesinPeralatan),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -374,7 +345,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Gedung',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.gedung),
+                          pw.Text(formatRupiah(data.gedung),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -395,7 +366,7 @@ class PdfLaporanService {
                             ),
                           ),
                           pw.Text(
-                            _rupiah(data.totalHarta),
+                            formatRupiah(data.totalHarta),
                             style: pw.TextStyle(
                               fontSize: 12,
                               fontWeight: pw.FontWeight.bold,
@@ -435,7 +406,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Hutang',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.hutang),
+                          pw.Text(formatRupiah(data.hutang),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -449,7 +420,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Modal',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.modal),
+                          pw.Text(formatRupiah(data.modal),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -463,7 +434,7 @@ class PdfLaporanService {
                         children: [
                           pw.Text('Penghasilan Kotor',
                               style: const pw.TextStyle(fontSize: 11)),
-                          pw.Text(_rupiah(data.penghasilanKotor),
+                          pw.Text(formatRupiah(data.penghasilanKotor),
                               style: const pw.TextStyle(fontSize: 11)),
                         ],
                       ),
@@ -484,7 +455,7 @@ class PdfLaporanService {
                             ),
                           ),
                           pw.Text(
-                            _rupiah(data.totalDana),
+                            formatRupiah(data.totalDana),
                             style: pw.TextStyle(
                               fontSize: 12,
                               fontWeight: pw.FontWeight.bold,

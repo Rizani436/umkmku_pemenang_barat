@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
+import '../utils/format.dart';
 import 'welcome_screen.dart';
 import 'tambah_transaksi_screen.dart';
 import 'riwayat_tab.dart';
@@ -16,26 +17,6 @@ import 'samakan_uang_laci_screen.dart';
 import '../providers/riwayat_provider.dart';
 import '../providers/kasbon_provider.dart';
 
-String _rupiah(double nilai, {bool spasi = false}) {
-  if (nilai == 0) return 'Rp${spasi ? ' ' : ''}0';
-  final isNegative = nilai < 0;
-  final s = nilai.toInt().abs().toString();
-  final buffer = StringBuffer('${isNegative ? '- ' : ''}Rp${spasi ? ' ' : ''}');
-  final offset = s.length % 3;
-  for (int i = 0; i < s.length; i++) {
-    if (i != 0 && (i - offset) % 3 == 0) buffer.write('.');
-    buffer.write(s[i]);
-  }
-  return buffer.toString();
-}
-
-String _tanggalIndo(DateTime dt) {
-  const bln = [
-    '', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-  ];
-  return '${dt.day} ${bln[dt.month]} ${dt.year}';
-}
 
 
 
@@ -366,7 +347,7 @@ class _FinanceCard extends ConsumerWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        _tanggalIndo(selectedDate),
+                        formatTanggalIndo(selectedDate),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -402,7 +383,7 @@ class _FinanceCard extends ConsumerWidget {
                         ),
                       )
                     : Text(
-                        _rupiah(keuntungan),
+                        formatRupiah(keuntungan),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 36,
@@ -529,7 +510,7 @@ class _SaldoKasCard extends ConsumerWidget {
                                 BorderRadius.all(Radius.circular(4))),
                       )
                     : Text(
-                        _rupiah(nilai, spasi: true),
+                        formatRupiah(nilai),
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -650,7 +631,7 @@ class _SummaryCard extends StatelessWidget {
                   child: LinearProgressIndicator(borderRadius: BorderRadius.all(Radius.circular(4))),
                 )
               : Text(
-                  _rupiah(nilai),
+                  formatRupiah(nilai),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -712,7 +693,7 @@ class _TotalCard extends StatelessWidget {
                   child: LinearProgressIndicator(borderRadius: BorderRadius.all(Radius.circular(4))),
                 )
               : Text(
-                  _rupiah(nilai),
+                  formatRupiah(nilai),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -796,7 +777,7 @@ class _JatuhTempoCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _rupiah(item.nominal, spasi: true),
+                  formatRupiah(item.nominal),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,

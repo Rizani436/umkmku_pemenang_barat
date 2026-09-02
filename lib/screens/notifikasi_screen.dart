@@ -6,6 +6,7 @@ import '../providers/kasbon_provider.dart';
 import '../theme/app_colors.dart';
 import 'kirim_tagihan_screen.dart';
 import 'detail_kasbon_screen.dart';
+import '../utils/format.dart';
 
 enum TipeNotifikasi { menagih, hutang, stok }
 
@@ -32,40 +33,15 @@ class NotifikasiItem {
 class NotifikasiScreen extends ConsumerWidget {
   const NotifikasiScreen({super.key});
 
-  String _formatRupiah(double nilai) {
-    if (nilai == 0) return 'Rp 0';
-    final s = nilai.toInt().toString();
-    final buf = StringBuffer('Rp ');
-    final off = s.length % 3;
-    for (int i = 0; i < s.length; i++) {
-      if (i != 0 && (i - off) % 3 == 0) buf.write('.');
-      buf.write(s[i]);
-    }
-    return buf.toString();
-  }
 
   List<NotifikasiItem> _generateNotifikasi(
       List<Hutang> hutangList, List<Piutang> piutangList) {
     final list = <NotifikasiItem>[];
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    const bulanNames = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember'
-    ];
 
     for (var p in piutangList) {
-      final nominalStr = _formatRupiah(p.nominal);
+      final nominalStr = formatRupiah(p.nominal);
       final createdDt = p.createdAt;
       final diffCreated = today
           .difference(
@@ -103,7 +79,7 @@ class NotifikasiScreen extends ConsumerWidget {
           ));
         } else {
           final tglStr =
-              '${target.day} ${bulanNames[target.month - 1]} ${target.year}';
+              '${target.day} ${namaBulanIndo[target.month]} ${target.year}';
           list.add(NotifikasiItem(
             id: 'p_${p.id}',
             tipe: TipeNotifikasi.menagih,
@@ -128,7 +104,7 @@ class NotifikasiScreen extends ConsumerWidget {
     }
 
     for (var h in hutangList) {
-      final nominalStr = _formatRupiah(h.nominal);
+      final nominalStr = formatRupiah(h.nominal);
       final createdDt = h.createdAt;
       final diffCreated = today
           .difference(
@@ -166,7 +142,7 @@ class NotifikasiScreen extends ConsumerWidget {
           ));
         } else {
           final tglStr =
-              '${target.day} ${bulanNames[target.month - 1]} ${target.year}';
+              '${target.day} ${namaBulanIndo[target.month]} ${target.year}';
           list.add(NotifikasiItem(
             id: 'h_${h.id}',
             tipe: TipeNotifikasi.hutang,
