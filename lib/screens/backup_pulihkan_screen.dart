@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../database/database_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/session_provider.dart';
@@ -55,11 +56,11 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
       final db = await appDb.database;
 
       // Tabel `akun` SENGAJA tidak ikut dicadangkan. Isinya nomor HP dan
-      // pin_hash; file ini berakhir di folder Download yang bisa dibaca
-      // aplikasi lain dan sering ikut terkirim saat di-share. PIN hanya 4
-      // angka, jadi hash yang bocor praktis sama dengan PIN yang bocor.
-      // Proses pemulihan juga tidak membutuhkannya — usaha yang dipulihkan
-      // selalu dipasang ke akun yang sedang masuk.
+      // pin_hash, sedangkan file ini dibagikan lewat share sheet ke WhatsApp,
+      // Drive, atau siapa pun yang dipilih pengguna. PIN hanya 4 angka, jadi
+      // hash yang bocor praktis sama dengan PIN yang bocor. Proses pemulihan
+      // juga tidak membutuhkannya — usaha yang dipulihkan selalu dipasang ke
+      // akun yang sedang masuk.
       final usahaList = await db.query('usaha');
       final transaksiList = await db.query('transaksi');
       final hutangList = await db.query('hutang');
@@ -85,52 +86,51 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
           '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
       final fileName = 'UMKMKu_Backup_$dateTag.json';
 
-      bool savedDirectlyToDownload = false;
+      // Dulu file ditulis langsung ke '/storage/emulated/0/Download', path
+      // yang hanya ada di Android, butuh izin penyimpanan yang tidak pernah
+      // diminta, dan sejak Android 10 diblokir scoped storage. Jalur
+      // cadangannya pun memakai Printing.sharePdf() untuk file JSON.
+      //
+      // Sekarang: file ditulis ke folder sementara milik aplikasi (selalu
+      // boleh, di semua platform, dan bisa dibersihkan sistem), lalu
+      // diserahkan ke share sheet supaya pengguna sendiri yang memilih
+      // menyimpannya ke Drive/WhatsApp/Files.
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/$fileName');
+      await file.writeAsBytes(jsonBytes);
 
-      try {
-        final downloadDirs = [
-          Directory('/storage/emulated/0/Download'),
-          Directory('/sdcard/Download'),
-        ];
-
-        for (final dir in downloadDirs) {
-          if (await dir.exists()) {
-            final targetFile = File('${dir.path}/$fileName');
-            await targetFile.writeAsBytes(jsonBytes);
-            savedDirectlyToDownload = true;
-            break;
-          }
-        }
-      } catch (e, st) {
-        // Bukan kegagalan fatal: di bawah masih ada jalur berbagi file.
-        // Tetap dicatat supaya tidak hilang diam-diam saat debugging.
-        debugPrint('Gagal menulis ke folder Download: $e\n$st');
-      }
-
-      if (!savedDirectlyToDownload) {
-        await Printing.sharePdf(
-          bytes: jsonBytes,
-          filename: fileName,
-        );
-      }
+      final hasil = await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/json')],
+          fileNameOverrides: [fileName],
+          subject: 'Salinan data Bisnis-Ku',
+        ),
+      );
+      final tersimpan = hasil.status == ShareResultStatus.success;
 
       final nowStr = formatTanggalIndo(dt);
-      final prefs = ref.read(sharedPreferencesProvider);
-      await prefs.setString('last_backup_date', nowStr);
+      // Tanggal salinan hanya dicatat kalau file benar-benar dibagikan;
+      // kalau share sheet dibatalkan, pengguna belum punya salinan apa pun.
+      if (tersimpan) {
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setString('last_backup_date', nowStr);
 
-      setState(() {
-        _lastBackupDate = nowStr;
-      });
+        if (!mounted) return;
+        setState(() {
+          _lastBackupDate = nowStr;
+        });
+      }
 
       if (!mounted) return;
-      final msg = savedDirectlyToDownload
-          ? 'File salinan ($fileName) otomatis tersimpan di folder Download HP Anda!'
-          : 'File salinan ($fileName) berhasil dibuat!';
+      final msg = tersimpan
+          ? 'File salinan ($fileName) berhasil dibuat dan dibagikan!'
+          : 'Pembuatan salinan dibatalkan.';
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: AppColors.success,
+          backgroundColor:
+              tersimpan ? AppColors.success : AppColors.textSecondary,
           duration: const Duration(seconds: 4),
         ),
       );
