@@ -26,15 +26,26 @@ class HutangRepository {
 
 
 
+  /// Jatuh tempo yang masih relevan: yang akan datang, plus yang terlambat
+  /// paling lama [toleransiTerlambatHari] hari. Tanpa batas bawah ini,
+  /// tagihan yang lewat berbulan-bulan akan mengunci seluruh slot teratas
+  /// dan yang jatuh tempo besok tidak pernah muncul di dashboard.
   Future<List<Hutang>> getJatuhTempoTerdekat(
     String idUsaha, {
     int limit = 5,
+    int toleransiTerlambatHari = 30,
   }) async {
     final db = await _db.database;
+    final today = DateTime.now();
+    final batasBawah = DateTime(today.year, today.month, today.day)
+        .subtract(Duration(days: toleransiTerlambatHari))
+        .toIso8601String();
+
     final rows = await db.query(
       'hutang',
-      where: 'id_usaha = ? AND tgl_jatuh_tempo IS NOT NULL',
-      whereArgs: [idUsaha],
+      where: 'id_usaha = ? AND tgl_jatuh_tempo IS NOT NULL '
+          'AND tgl_jatuh_tempo >= ?',
+      whereArgs: [idUsaha, batasBawah],
       orderBy: 'tgl_jatuh_tempo ASC',
       limit: limit,
     );

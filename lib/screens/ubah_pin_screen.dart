@@ -18,28 +18,82 @@ class UbahPinScreen extends ConsumerStatefulWidget {
   ConsumerState<UbahPinScreen> createState() => _UbahPinScreenState();
 }
 
+/// Tahap 0 sengaja ditaruh di depan: PIN lama harus dibuktikan dulu sebelum
+/// boleh diganti.
+enum _StepUbahPin { verifikasiLama, pinBaru, konfirmasiBaru }
+
 class _UbahPinScreenState extends ConsumerState<UbahPinScreen> {
+  _StepUbahPin _stepUbah = _StepUbahPin.verifikasiLama;
   int _step = 1;
   String _firstPin = '';
   String _currentInput = '';
   bool _isSaving = false;
+  bool _isVerifying = false;
 
   void _onNumberTap(String number) {
-    if (_currentInput.length >= 4 || _isSaving) return;
+    if (_currentInput.length >= 4 || _isSaving || _isVerifying) return;
     setState(() {
       _currentInput += number;
     });
 
     if (_currentInput.length == 4) {
-      _processPin();
+      if (_stepUbah == _StepUbahPin.verifikasiLama) {
+        _verifikasiPinLama();
+      } else {
+        _processPin();
+      }
     }
   }
 
   void _onBackspace() {
-    if (_currentInput.isEmpty || _isSaving) return;
+    if (_currentInput.isEmpty || _isSaving || _isVerifying) return;
     setState(() {
       _currentInput = _currentInput.substring(0, _currentInput.length - 1);
     });
+  }
+
+  Future<void> _verifikasiPinLama() async {
+    setState(() => _isVerifying = true);
+    try {
+      final cocok = await ref.read(authRepositoryProvider).verifikasiPin(
+            idAkun: widget.idAkun,
+            pin: _currentInput,
+          );
+      if (!mounted) return;
+
+      if (!cocok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('PIN lama salah. Coba lagi.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        setState(() {
+          _currentInput = '';
+          _isVerifying = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _stepUbah = _StepUbahPin.pinBaru;
+        _step = 1;
+        _currentInput = '';
+        _isVerifying = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memeriksa PIN: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      setState(() {
+        _currentInput = '';
+        _isVerifying = false;
+      });
+    }
   }
 
   Future<void> _processPin() async {
@@ -49,6 +103,7 @@ class _UbahPinScreenState extends ConsumerState<UbahPinScreen> {
       if (!mounted) return;
       setState(() {
         _step = 2;
+        _stepUbah = _StepUbahPin.konfirmasiBaru;
         _currentInput = '';
       });
     } else {
@@ -80,6 +135,7 @@ class _UbahPinScreenState extends ConsumerState<UbahPinScreen> {
           );
           setState(() {
             _step = 1;
+            _stepUbah = _StepUbahPin.pinBaru;
             _firstPin = '';
             _currentInput = '';
             _isSaving = false;
@@ -94,6 +150,7 @@ class _UbahPinScreenState extends ConsumerState<UbahPinScreen> {
         );
         setState(() {
           _step = 1;
+          _stepUbah = _StepUbahPin.pinBaru;
           _firstPin = '';
           _currentInput = '';
         });
@@ -103,10 +160,19 @@ class _UbahPinScreenState extends ConsumerState<UbahPinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final titleText = _step == 1 ? 'Ubah PIN 4 Angka' : 'Konfirmasi PIN Baru';
-    final subtitleText = _step == 1
-        ? 'Gunakan PIN ini untuk masuk ke aplikasi.'
-        : 'Masukkan kembali 4 angka PIN baru Anda.';
+    final String titleText;
+    final String subtitleText;
+    switch (_stepUbah) {
+      case _StepUbahPin.verifikasiLama:
+        titleText = 'Masukkan PIN Lama';
+        subtitleText = 'Demi keamanan, buktikan dulu PIN Anda saat ini.';
+      case _StepUbahPin.pinBaru:
+        titleText = 'Ubah PIN 4 Angka';
+        subtitleText = 'Gunakan PIN ini untuk masuk ke aplikasi.';
+      case _StepUbahPin.konfirmasiBaru:
+        titleText = 'Konfirmasi PIN Baru';
+        subtitleText = 'Masukkan kembali 4 angka PIN baru Anda.';
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9FE),

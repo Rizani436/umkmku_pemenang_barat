@@ -42,7 +42,9 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
           _lastBackupDate = saved;
         });
       }
-    } catch (_) {}
+    } catch (e, st) {
+      debugPrint('Gagal membaca tanggal salinan terakhir: $e\n$st');
+    }
   }
 
   String _formatIndonesianDate(DateTime dt) {
@@ -71,27 +73,25 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
       final appDb = ref.read(appDatabaseProvider);
       final db = await appDb.database;
 
-      final akunList = await db.query('akun');
+      // Tabel `akun` SENGAJA tidak ikut dicadangkan. Isinya nomor HP dan
+      // pin_hash; file ini berakhir di folder Download yang bisa dibaca
+      // aplikasi lain dan sering ikut terkirim saat di-share. PIN hanya 4
+      // angka, jadi hash yang bocor praktis sama dengan PIN yang bocor.
+      // Proses pemulihan juga tidak membutuhkannya — usaha yang dipulihkan
+      // selalu dipasang ke akun yang sedang masuk.
       final usahaList = await db.query('usaha');
       final transaksiList = await db.query('transaksi');
       final hutangList = await db.query('hutang');
       final piutangList = await db.query('piutang');
 
-      List<Map<String, dynamic>> kasbonList = [];
-      try {
-        kasbonList = await db.query('kasbon');
-      } catch (_) {}
-
       final backupMap = {
         'app': 'UMKM-Ku Pemenang Barat',
-        'version': 1,
+        'version': 2,
         'created_at': DateTime.now().toIso8601String(),
-        'akun': akunList,
         'usaha': usahaList,
         'transaksi': transaksiList,
         'hutang': hutangList,
         'piutang': piutangList,
-        'kasbon': kasbonList,
       };
 
       final jsonString = const JsonEncoder.withIndent('  ').convert(backupMap);
@@ -118,7 +118,11 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
             break;
           }
         }
-      } catch (_) {}
+      } catch (e, st) {
+        // Bukan kegagalan fatal: di bawah masih ada jalur berbagi file.
+        // Tetap dicatat supaya tidak hilang diam-diam saat debugging.
+        debugPrint('Gagal menulis ke folder Download: $e\n$st');
+      }
 
       if (!savedDirectlyToDownload) {
         await Printing.sharePdf(
@@ -229,11 +233,24 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         selectedUsaha = chosen;
       }
 
-      setState(() => _isRestoring = true);
-
       final currentAkun = ref.read(authControllerProvider).value;
       final currentAkunId =
           currentAkun?.id ?? ref.read(sessionServiceProvider).muatIdAkun();
+
+      if (currentAkunId == null || currentAkunId.isEmpty) {
+        throw Exception(
+            'Tidak ada akun yang sedang masuk. Masuk dulu sebelum memulihkan data.');
+      }
+
+      // Memulihkan berarti MENIMPA data usaha yang sekarang. Wajib
+      // dikonfirmasi dulu — sebelumnya langsung jalan tanpa peringatan.
+      final lanjut = await _konfirmasiTimpaData(
+        namaUsaha: '${selectedUsaha['nama_usaha'] ?? 'Usaha'}',
+      );
+      if (lanjut != true) return;
+
+      if (!mounted) return;
+      setState(() => _isRestoring = true);
 
       final selectedUsahaId = selectedUsaha['id'];
 
@@ -252,43 +269,52 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               .toList() ??
           [];
 
-      final filteredKasbon = (backupMap['kasbon'] as List?)
-              ?.where((k) => k['id_usaha'] == selectedUsahaId)
-              .toList() ??
-          [];
-
       final appDb = ref.read(appDatabaseProvider);
       final db = await appDb.database;
 
       await db.transaction((txn) async {
-        await txn.delete('usaha');
-        final mapUsaha = Map<String, dynamic>.from(selectedUsaha);
-        if (currentAkunId != null && currentAkunId.isNotEmpty) {
-          mapUsaha['id_akun'] = currentAkunId;
+        // Hanya menghapus milik akun yang sedang masuk. Sebelumnya
+        // `txn.delete('usaha')` tanpa WHERE ikut menghabiskan data akun lain
+        // di HP yang sama.
+        final usahaMilikAkun = await txn.query(
+          'usaha',
+          columns: ['id'],
+          where: 'id_akun = ?',
+          whereArgs: [currentAkunId],
+        );
+        final idUsahaMilikAkun =
+            usahaMilikAkun.map((r) => r['id'] as String).toList();
+
+        if (idUsahaMilikAkun.isNotEmpty) {
+          final placeholder =
+              List.filled(idUsahaMilikAkun.length, '?').join(',');
+          for (final tabel in ['transaksi', 'hutang', 'piutang']) {
+            await txn.delete(
+              tabel,
+              where: 'id_usaha IN ($placeholder)',
+              whereArgs: idUsahaMilikAkun,
+            );
+          }
+          await txn.delete(
+            'usaha',
+            where: 'id_akun = ?',
+            whereArgs: [currentAkunId],
+          );
         }
+
+        final mapUsaha = Map<String, dynamic>.from(selectedUsaha);
+        mapUsaha['id_akun'] = currentAkunId;
         await txn.insert('usaha', mapUsaha);
 
-        await txn.delete('transaksi');
-        for (var item in filteredTransaksi) {
+        for (final item in filteredTransaksi) {
           await txn.insert('transaksi', Map<String, dynamic>.from(item));
         }
-
-        await txn.delete('hutang');
-        for (var item in filteredHutang) {
+        for (final item in filteredHutang) {
           await txn.insert('hutang', Map<String, dynamic>.from(item));
         }
-
-        await txn.delete('piutang');
-        for (var item in filteredPiutang) {
+        for (final item in filteredPiutang) {
           await txn.insert('piutang', Map<String, dynamic>.from(item));
         }
-
-        try {
-          await txn.delete('kasbon');
-          for (var item in filteredKasbon) {
-            await txn.insert('kasbon', Map<String, dynamic>.from(item));
-          }
-        } catch (_) {}
       });
 
       ref.invalidate(currentUsahaProvider);
@@ -320,6 +346,34 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         setState(() => _isRestoring = false);
       }
     }
+  }
+
+  /// Pemulihan bersifat menimpa dan tidak bisa dibatalkan, jadi minta
+  /// persetujuan eksplisit dulu.
+  Future<bool?> _konfirmasiTimpaData({required String namaUsaha}) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Timpa data saat ini?'),
+        content: Text(
+          'Seluruh transaksi, hutang, dan piutang usaha Anda yang tersimpan '
+          'sekarang akan DIHAPUS dan diganti dengan data "$namaUsaha" dari '
+          'file salinan.\n\nTindakan ini tidak dapat dibatalkan. Sebaiknya '
+          'buat salinan terbaru dulu sebelum melanjutkan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Ya, timpa'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<Map<String, dynamic>?> _showSelectUsahaDialog(

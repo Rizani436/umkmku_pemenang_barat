@@ -149,8 +149,10 @@ final dashboardSummaryProvider = FutureProvider<DashboardSummary>((ref) async {
   final totalPemasukanAll = results[6];
   final totalPengeluaranAll = results[7];
 
-  final saldoKasCalc = usaha.kas + totalPemasukanAll - totalPengeluaranAll;
-  final saldoKas = saldoKasCalc < 0 ? 0.0 : saldoKasCalc;
+  // Saldo minus TIDAK dipaksa jadi nol. Kas negatif berarti ada pencatatan
+  // yang keliru (atau uang laci memang kurang), dan itu justru yang paling
+  // perlu dilihat pemilik usaha, bukan disembunyikan.
+  final saldoKas = usaha.kas + totalPemasukanAll - totalPengeluaranAll;
 
   final hutangList = await hutangRepo.getJatuhTempoTerdekat(idUsaha, limit: 5);
   final piutangList =

@@ -530,12 +530,26 @@ class _SaldoKasCard extends ConsumerWidget {
                       )
                     : Text(
                         _rupiah(nilai, spasi: true),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF212936),
+                          color: nilai < 0
+                              ? const Color(0xFFE53935)
+                              : const Color(0xFF212936),
                         ),
                       ),
+                if (!isLoading && nilai < 0)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Text(
+                      'Saldo minus — periksa kembali catatan Anda',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFE53935),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
