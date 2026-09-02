@@ -1,12 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
-import '../providers/kasbon_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
@@ -15,6 +11,7 @@ import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
 import 'edit_kasbon_screen.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class DetailKasbonScreen extends ConsumerStatefulWidget {
   final Hutang? hutang;
@@ -63,7 +60,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5A5A),
+              backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -83,10 +80,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
         await ref.read(hutangRepositoryProvider).hapus(widget.hutang!.id);
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -127,7 +121,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                       color: const Color(0xFFFFF3DC),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.payments_outlined, color: Color(0xFFF5A623)),
+                    child: const Icon(Icons.payments_outlined, color: AppColors.warning),
                   ),
                   const SizedBox(width: 10),
                   Text(_isPiutang ? 'Cicil Piutang' : 'Cicil Hutang',
@@ -185,7 +179,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                                 : Icons.info_outline_rounded,
                             size: 18,
                             color: inputVal >= sisaPiutang
-                                ? const Color(0xFF1DB57A)
+                                ? AppColors.success
                                 : AppColors.primary,
                           ),
                           const SizedBox(width: 8),
@@ -198,7 +192,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
                                 color: inputVal >= sisaPiutang
-                                    ? const Color(0xFF1DB57A)
+                                    ? AppColors.success
                                     : AppColors.primary,
                               ),
                             ),
@@ -217,7 +211,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                 ElevatedButton(
                   onPressed: (inputVal <= 0) ? null : () => Navigator.pop(ctx, inputVal),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1DB57A),
+                    backgroundColor: AppColors.success,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
@@ -283,12 +277,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
         }
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
-      ref.invalidate(laporanRugiLabaProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -300,7 +289,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -327,7 +316,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1DB57A),
+              backgroundColor: AppColors.success,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -366,19 +355,14 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
         await ref.read(hutangRepositoryProvider).hapus(widget.hutang!.id);
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
-      ref.invalidate(laporanRugiLabaProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$_title atas nama "$_nama" berhasil dilunasi! 🎉'),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -494,7 +478,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
             child: const Icon(
               Icons.shopping_bag_rounded,
               size: 36,
-              color: Color(0xFFFF5A5A),
+              color: AppColors.danger,
             ),
           ),
           const SizedBox(height: 16),
@@ -514,7 +498,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
-              color: Color(0xFFFF5A5A),
+              color: AppColors.danger,
               letterSpacing: 0.3,
             ),
           ),
@@ -670,7 +654,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                 ),
                 child: const Icon(
                   Icons.delete_outline_rounded,
-                  color: Color(0xFFFF5A5A),
+                  color: AppColors.danger,
                   size: 22,
                 ),
               ),
@@ -718,7 +702,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5A623),
+                  backgroundColor: AppColors.warning,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: EdgeInsets.zero,
@@ -745,7 +729,7 @@ class _DetailKasbonScreenState extends ConsumerState<DetailKasbonScreen> {
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1DB57A),
+                  backgroundColor: AppColors.success,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   padding: EdgeInsets.zero,

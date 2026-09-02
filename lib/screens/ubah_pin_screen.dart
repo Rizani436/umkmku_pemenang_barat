@@ -121,7 +121,7 @@ class _UbahPinScreenState extends ConsumerState<UbahPinScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('PIN 4 angka berhasil diperbarui!'),
-              backgroundColor: Color(0xFF1DB57A),
+              backgroundColor: AppColors.success,
             ),
           );
           Navigator.pop(context);

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
@@ -7,13 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../database/database_provider.dart';
 import '../providers/auth_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../providers/session_provider.dart';
-import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class BackupPulihkanScreen extends ConsumerStatefulWidget {
   const BackupPulihkanScreen({super.key});
@@ -131,7 +128,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(msg),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -301,10 +298,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         }
       });
 
-      ref.invalidate(currentUsahaProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       final nama = selectedUsaha['nama_usaha'] ?? 'Usaha';
@@ -313,7 +307,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
         SnackBar(
           content: Text(
               'Berhasil memulihkan data "$nama"$fileLabel ke akun Anda!'),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           duration: const Duration(seconds: 4),
         ),
       );
@@ -409,7 +403,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? const Color(0xFF5B4FDD)
+                                    ? AppColors.primary
                                     : const Color(0xFFE5E7EB),
                                 width: isSelected ? 1.5 : 1.0,
                               ),
@@ -430,7 +424,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                           ? Icons.radio_button_checked_rounded
                                           : Icons.radio_button_off_rounded,
                                       color: isSelected
-                                          ? const Color(0xFF5B4FDD)
+                                          ? AppColors.primary
                                           : const Color(0xFF9CA3AF),
                                       size: 20,
                                     ),
@@ -479,7 +473,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               ElevatedButton(
                 onPressed: () => Navigator.pop(ctx, selected),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5B4FDD),
+                  backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -556,7 +550,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
               _restoreFromRawJson(rawJson);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF5B4FDD),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -638,7 +632,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                 ),
                                 child: const Icon(
                                   Icons.cloud_download_rounded,
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                   size: 24,
                                 ),
                               ),
@@ -684,7 +678,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                 const Icon(
                                   Icons.history_rounded,
                                   size: 16,
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
@@ -708,7 +702,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                   ? null
                                   : _buatSalinanSekarang,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF5B4FDD),
+                                backgroundColor: AppColors.primary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -772,7 +766,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                 ),
                                 child: const Icon(
                                   Icons.folder_rounded,
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                   size: 24,
                                 ),
                               ),
@@ -813,9 +807,9 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                   ? null
                                   : _pilihFileSalinan,
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: const Color(0xFF5B4FDD),
+                                foregroundColor: AppColors.primary,
                                 side: const BorderSide(
-                                  color: Color(0xFF5B4FDD),
+                                  color: AppColors.primary,
                                   width: 1.5,
                                 ),
                                 shape: RoundedRectangleBorder(
@@ -828,7 +822,7 @@ class _BackupPulihkanScreenState extends ConsumerState<BackupPulihkanScreen> {
                                       height: 18,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        color: Color(0xFF5B4FDD),
+                                        color: AppColors.primary,
                                       ),
                                     )
                                   : const Icon(

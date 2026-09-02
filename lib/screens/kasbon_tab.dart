@@ -1,19 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
 import '../providers/kasbon_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../theme/app_colors.dart';
 
 import 'tambah_kasbon_screen.dart';
 import 'detail_kasbon_screen.dart';
 import 'kirim_tagihan_screen.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
-const _colorHutang = Color(0xFFFF5A5A);
-const _colorPiutang = Color(0xFFF5A623);
+const _colorHutang = AppColors.danger;
+const _colorPiutang = AppColors.warning;
 
 enum JatuhTempoStatus { overdue, dueSoon, normal, none }
 
@@ -93,10 +92,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
       ),
     );
     if (res == true) {
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
     }
   }
 
@@ -202,10 +198,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(hutangListProvider);
-              ref.invalidate(piutangListProvider);
-              ref.invalidate(dashboardSummaryProvider);
-              ref.invalidate(riwayatProvider);
+              refreshDataUsaha(ref);
             },
             color: AppColors.primary,
             child: SingleChildScrollView(
@@ -428,9 +421,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   ),
                 );
                 if (res == true) {
-                  ref.invalidate(hutangListProvider);
-                  ref.invalidate(dashboardSummaryProvider);
-                  ref.invalidate(riwayatProvider);
+                  refreshDataUsaha(ref);
                 }
               },
             );
@@ -490,9 +481,7 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                   ),
                 );
                 if (res == true) {
-                  ref.invalidate(piutangListProvider);
-                  ref.invalidate(dashboardSummaryProvider);
-                  ref.invalidate(riwayatProvider);
+                  refreshDataUsaha(ref);
                 }
               },
               onWhatsAppTap: hasPhone
@@ -623,14 +612,14 @@ class _KasbonTabState extends ConsumerState<KasbonTab> {
                           children: [
                             Icon(
                               Icons.chat_rounded,
-                              color: Color(0xFF1DB57A),
+                              color: AppColors.success,
                               size: 20,
                             ),
                             SizedBox(width: 6),
                             Text(
                               "Tagih",
                               style: TextStyle(
-                                color: Color(0xFF1DB57A),
+                                color: AppColors.success,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),

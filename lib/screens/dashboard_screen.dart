@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/usaha.dart';
 import '../providers/auth_provider.dart';
@@ -14,8 +14,7 @@ import 'laporan_tab.dart';
 import 'notifikasi_screen.dart';
 import 'profil_usaha_screen.dart';
 import 'samakan_uang_laci_screen.dart';
-import '../providers/riwayat_provider.dart';
-import '../providers/kasbon_provider.dart';
+import '../providers/refresh.dart';
 
 
 
@@ -79,9 +78,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               builder: (_) => const TambahTransaksiScreen(),
             ),
           );
-          ref.invalidate(riwayatProvider);
-          ref.invalidate(hutangListProvider);
-          ref.invalidate(piutangListProvider);
+          refreshDataUsaha(ref);
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -136,9 +133,9 @@ class _BerandaTab extends ConsumerWidget {
                   label: 'Uang Masuk',
                   nilai: summary.uangMasukHariIni,
                   iconBg: const Color(0xFFD6F5EB),
-                  iconColor: const Color(0xFF1DB57A),
+                  iconColor: AppColors.success,
                   iconData: Icons.arrow_downward_rounded,
-                  nilaiColor: const Color(0xFF1DB57A),
+                  nilaiColor: AppColors.success,
                   isLoading: summaryAsync.isLoading,
                 ),
               ),
@@ -148,9 +145,9 @@ class _BerandaTab extends ConsumerWidget {
                   label: 'Uang Keluar',
                   nilai: summary.uangKeluarHariIni,
                   iconBg: const Color(0xFFFFE5E5),
-                  iconColor: const Color(0xFFFF5A5A),
+                  iconColor: AppColors.danger,
                   iconData: Icons.arrow_upward_rounded,
-                  nilaiColor: const Color(0xFFFF5A5A),
+                  nilaiColor: AppColors.danger,
                   isLoading: summaryAsync.isLoading,
                 ),
               ),
@@ -165,7 +162,7 @@ class _BerandaTab extends ConsumerWidget {
                 child: _TotalCard(
                   label: 'Total Piutang',
                   nilai: summary.totalPiutang,
-                  nilaiColor: const Color(0xFFF5A623),
+                  nilaiColor: AppColors.warning,
                   isLoading: summaryAsync.isLoading,
                 ),
               ),
@@ -272,12 +269,12 @@ class _FinanceCard extends ConsumerWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF5B4FDD), Color(0xFF7B6FF0), Color(0xFF6B5FE8)],
+          colors: [AppColors.primary, Color(0xFF7B6FF0), Color(0xFF6B5FE8)],
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF5B4FDD).withValues(alpha: 0.35),
+            color: AppColors.primary.withValues(alpha: 0.35),
             blurRadius: 24,
             offset: const Offset(0, 8),
           ),
@@ -483,7 +480,7 @@ class _SaldoKasCard extends ConsumerWidget {
             ),
             child: const Icon(
               Icons.account_balance_wallet_rounded,
-              color: Color(0xFF5B4FDD),
+              color: AppColors.primary,
               size: 22,
             ),
           ),
@@ -557,7 +554,7 @@ class _SaldoKasCard extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF5B4FDD),
+                      color: AppColors.primary,
                     ),
                   ),
                 ),
@@ -715,8 +712,8 @@ class _JatuhTempoCard extends StatelessWidget {
 
 
   Color get _warnaBorder {
-    if (item.jenis == JatuhTempoJenis.hutang) return const Color(0xFFFF5A5A);
-    return const Color(0xFFF5A623);
+    if (item.jenis == JatuhTempoJenis.hutang) return AppColors.danger;
+    return AppColors.warning;
   }
 
   Color get _warnaBadgeBg {
@@ -730,7 +727,7 @@ class _JatuhTempoCard extends StatelessWidget {
   Color get _warnaBadgeText {
     final diff = item.selisihHari;
     if (diff < 0) return const Color(0xFFCC2222);
-    if (diff <= 1) return const Color(0xFFFF5A5A);
+    if (diff <= 1) return AppColors.danger;
     if (diff <= 2) return const Color(0xFFBB7A00);
     return const Color(0xFF1A6FA0);
   }

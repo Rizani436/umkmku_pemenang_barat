@@ -1,16 +1,14 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/kasbon_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class EditKasbonScreen extends ConsumerStatefulWidget {
   final Hutang? hutang;
@@ -150,17 +148,14 @@ class _EditKasbonScreenState extends ConsumerState<EditKasbonScreen> {
             );
       }
 
-      ref.invalidate(hutangListProvider);
-      ref.invalidate(piutangListProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('$_title berhasil diperbarui! ✨'),
-          backgroundColor: const Color(0xFF1DB57A),
+          backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ),
       );

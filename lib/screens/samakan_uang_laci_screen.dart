@@ -1,12 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
-import '../providers/usaha_provider.dart';
 import '../repositories/transaksi_repository.dart';
 import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class SamakanUangLaciScreen extends ConsumerStatefulWidget {
   final String idUsaha;
@@ -101,16 +99,14 @@ class _SamakanUangLaciScreenState
             kas: adjustedBaseKas,
           );
 
-      ref.invalidate(currentUsahaProvider);
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(laporanNeracaProvider);
+      refreshDataUsaha(ref);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
                 'Saldo uang laci berhasil diselaraskan menjadi Rp ${formatRibuan(parseNominalInput(_inputNominal))}'),
-            backgroundColor: const Color(0xFF1DB57A),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -184,7 +180,7 @@ class _SamakanUangLaciScreenState
                       ),
                       child: const Icon(
                         Icons.account_balance_wallet_rounded,
-                        color: Color(0xFF5B4FDD),
+                        color: AppColors.primary,
                         size: 32,
                       ),
                     ),
@@ -255,7 +251,7 @@ class _SamakanUangLaciScreenState
                                   style: const TextStyle(
                                     fontSize: 34,
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF5B4FDD),
+                                    color: AppColors.primary,
                                   ),
                                 ),
                               ],
@@ -319,7 +315,7 @@ class _SamakanUangLaciScreenState
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _sesuaikanSaldo,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5B4FDD),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(

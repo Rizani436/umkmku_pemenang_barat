@@ -46,8 +46,8 @@ class _TransaksiSuksesScreenState extends State<TransaksiSuksesScreen>
   bool get _isPemasukan => widget.jenisTransaksi == 'pemasukan';
 
   Color get _activeColor => _isPemasukan
-      ? const Color(0xFF1DB57A)
-      : const Color(0xFFFF5A5A);
+      ? AppColors.success
+      : AppColors.danger;
 
 
   @override

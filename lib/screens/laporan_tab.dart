@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import 'pratinjau_laporan_screen.dart';
 import 'edit_aset_usaha_screen.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 
 
@@ -114,7 +115,7 @@ class _LaporanTabState extends ConsumerState<LaporanTab>
         Expanded(
           child: RefreshIndicator(
             onRefresh: () async {
-              ref.invalidate(laporanNeracaProvider);
+              refreshDataUsaha(ref);
               ref.invalidate(periodeLaporanProvider);
             },
             color: AppColors.primary,
@@ -717,10 +718,10 @@ class _RugiLabaCard extends StatelessWidget {
               _RowItem(
                 icon: Icons.arrow_downward_rounded,
                 iconBg: const Color(0xFFD6F5EB),
-                iconColor: const Color(0xFF1DB57A),
+                iconColor: AppColors.success,
                 label: 'Total Pendapatan',
                 nilai: laporan.totalPendapatan,
-                nilaiColor: const Color(0xFF1DB57A),
+                nilaiColor: AppColors.success,
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 14),
@@ -729,10 +730,10 @@ class _RugiLabaCard extends StatelessWidget {
               _RowItem(
                 icon: Icons.arrow_upward_rounded,
                 iconBg: const Color(0xFFFFE5E5),
-                iconColor: const Color(0xFFFF5A5A),
+                iconColor: AppColors.danger,
                 label: 'Total Pengeluaran',
                 nilai: laporan.totalPengeluaran,
-                nilaiColor: const Color(0xFFFF5A5A),
+                nilaiColor: AppColors.danger,
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 16),
@@ -763,7 +764,7 @@ class _RugiLabaCard extends StatelessWidget {
           fontWeight: FontWeight.bold,
           color: isProfit
               ? AppColors.primary
-              : const Color(0xFFFF5A5A),
+              : AppColors.danger,
           letterSpacing: -0.5,
         ),
       ),
@@ -872,7 +873,7 @@ class _NeracaCard extends ConsumerWidget {
         _SeksiNeraca(
           headerIcon: Icons.savings_outlined,
           headerIconBg: const Color(0xFFFFF3DC),
-          headerIconColor: const Color(0xFFF5A623),
+          headerIconColor: AppColors.warning,
           headerLabel: 'SUMBER DANA (Pasiva)',
           rows: [
             _NeracaRow(label: 'Hutang', nilai: laporan.hutang),
@@ -884,7 +885,7 @@ class _NeracaCard extends ConsumerWidget {
           ],
           totalLabel: 'Total Dana',
           totalNilai: laporan.totalDana,
-          totalColor: const Color(0xFFF5A623),
+          totalColor: AppColors.warning,
         ),
 
         const SizedBox(height: 14),
@@ -1050,8 +1051,8 @@ class _NeracaStatusBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: seimbang
-              ? const Color(0xFF1DB57A).withValues(alpha: 0.3)
-              : const Color(0xFFFF5A5A).withValues(alpha: 0.3),
+              ? AppColors.success.withValues(alpha: 0.3)
+              : AppColors.danger.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -1062,8 +1063,8 @@ class _NeracaStatusBanner extends StatelessWidget {
             height: 28,
             decoration: BoxDecoration(
               color: seimbang
-                  ? const Color(0xFF1DB57A)
-                  : const Color(0xFFFF5A5A),
+                  ? AppColors.success
+                  : AppColors.danger,
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -1081,8 +1082,8 @@ class _NeracaStatusBanner extends StatelessWidget {
               fontSize: 15,
               fontWeight: FontWeight.bold,
               color: seimbang
-                  ? const Color(0xFF1DB57A)
-                  : const Color(0xFFFF5A5A),
+                  ? AppColors.success
+                  : AppColors.danger,
             ),
           ),
         ],
@@ -1161,8 +1162,8 @@ class _InfoBanner extends StatelessWidget {
         ? const Color(0xFFD6F5EB)
         : const Color(0xFFFFE5E5);
     final iconColor = isProfit
-        ? const Color(0xFF1DB57A)
-        : const Color(0xFFFF5A5A);
+        ? AppColors.success
+        : AppColors.danger;
     final icon = isProfit
         ? Icons.trending_up_rounded
         : Icons.trending_down_rounded;
@@ -1234,14 +1235,14 @@ class _ErrorCard extends StatelessWidget {
       child: Column(
         children: [
           const Icon(Icons.error_outline_rounded,
-              color: Color(0xFFFF5A5A), size: 36),
+              color: AppColors.danger, size: 36),
           const SizedBox(height: 8),
           Text(
             'Gagal memuat laporan:\n$pesan',
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 13,
-              color: Color(0xFFFF5A5A),
+              color: AppColors.danger,
             ),
           ),
         ],

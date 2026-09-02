@@ -1,40 +1,22 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/transaksi.dart';
 import '../models/hutang.dart';
 import '../models/piutang.dart';
 import '../models/kategori_transaksi.dart';
 import '../models/riwayat_item_model.dart';
+import '../providers/kasbon_provider.dart';
 import '../providers/riwayat_provider.dart';
-import '../providers/auth_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../repositories/hutang_repository.dart';
-import '../repositories/piutang_repository.dart';
-import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
 import 'detail_transaksi_screen.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
-final riwayatHutangProvider = FutureProvider<List<Hutang>>((ref) async {
-  final akun = ref.watch(authControllerProvider).value;
-  if (akun == null) return [];
-  final usaha = await ref.read(usahaRepositoryProvider).getUsahaByAkun(akun.id);
-  if (usaha == null) return [];
-  return ref.read(hutangRepositoryProvider).getByUsaha(usaha.id);
-});
 
-final riwayatPiutangProvider = FutureProvider<List<Piutang>>((ref) async {
-  final akun = ref.watch(authControllerProvider).value;
-  if (akun == null) return [];
-  final usaha = await ref.read(usahaRepositoryProvider).getUsahaByAkun(akun.id);
-  if (usaha == null) return [];
-  return ref.read(piutangRepositoryProvider).getByUsaha(usaha.id);
-});
-
-const _colorMasuk   = Color(0xFF1DB57A);
-const _colorKeluar  = Color(0xFFFF5A5A);
-const _colorHutang  = Color(0xFFFF5A5A);
-const _colorPiutang = Color(0xFFF5A623);
+const _colorMasuk   = AppColors.success;
+const _colorKeluar  = AppColors.danger;
+const _colorHutang  = AppColors.danger;
+const _colorPiutang = AppColors.warning;
 IconData _iconDariKategori(String label) {
   for (final sektor in SektorUsaha.values) {
     for (final item in KategoriTransaksi.masuk(sektor)) {
@@ -136,8 +118,8 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
   @override
   Widget build(BuildContext context) {
     final riwayatAsync   = ref.watch(riwayatProvider);
-    final hutangAsync    = ref.watch(riwayatHutangProvider);
-    final piutangAsync   = ref.watch(riwayatPiutangProvider);
+    final hutangAsync    = ref.watch(hutangListProvider);
+    final piutangAsync   = ref.watch(piutangListProvider);
 
     if (riwayatAsync.isLoading || hutangAsync.isLoading || piutangAsync.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -204,9 +186,7 @@ class _RiwayatTabState extends ConsumerState<RiwayatTab> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(riwayatProvider);
-        ref.invalidate(riwayatHutangProvider);
-        ref.invalidate(riwayatPiutangProvider);
+        refreshDataUsaha(ref);
       },
       color: AppColors.primary,
       child: Column(
@@ -697,10 +677,7 @@ class _RiwayatItemTile extends ConsumerWidget {
           ),
         );
         if (result == true) {
-          ref.invalidate(dashboardSummaryProvider);
-          ref.invalidate(riwayatProvider);
-          ref.invalidate(riwayatHutangProvider);
-          ref.invalidate(riwayatPiutangProvider);
+          refreshDataUsaha(ref);
         }
       },
       borderRadius: BorderRadius.circular(16),

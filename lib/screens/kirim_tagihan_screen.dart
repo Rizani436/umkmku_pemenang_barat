@@ -1,13 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/piutang.dart';
 import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
 import '../repositories/piutang_repository.dart';
-import '../providers/kasbon_provider.dart';
-import '../providers/riwayat_provider.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class KirimTagihanScreen extends ConsumerStatefulWidget {
   final Piutang piutang;
@@ -88,8 +87,7 @@ class _KirimTagihanScreenState extends ConsumerState<KirimTagihanScreen> {
                       nomorHP: val,
                       keterangan: widget.piutang.keterangan,
                     );
-                ref.invalidate(piutangListProvider);
-                ref.invalidate(riwayatProvider);
+                refreshDataUsaha(ref);
               }
               if (!ctx.mounted) return;
               Navigator.pop(ctx, val);

@@ -1,12 +1,12 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../providers/laporan_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../repositories/usaha_repository.dart';
 import '../theme/app_colors.dart';
 import '../utils/rupiah_formatter.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class EditAsetUsahaScreen extends ConsumerStatefulWidget {
   final String idUsaha;
@@ -80,14 +80,13 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
             );
       }
 
-      ref.invalidate(currentUsahaProvider);
-      ref.invalidate(laporanNeracaProvider);
+      refreshDataUsaha(ref);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Nilai aset usaha berhasil diperbarui!'),
-            backgroundColor: Color(0xFF1DB57A),
+            backgroundColor: AppColors.success,
           ),
         );
         Navigator.pop(context);
@@ -215,7 +214,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _isSaving ? null : _simpanAset,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF5B4FDD),
+                          backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
@@ -305,7 +304,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
             decoration: InputDecoration(
               hintText: 'Masukkan nominal tambahan stok',
               prefixIcon: const Icon(Icons.add_shopping_cart_rounded,
-                  size: 20, color: Color(0xFF1DB57A)),
+                  size: 20, color: AppColors.success),
               filled: true,
               fillColor: Colors.white,
               contentPadding:
@@ -317,7 +316,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:
-                    const BorderSide(color: Color(0xFF1DB57A), width: 1.5),
+                    const BorderSide(color: AppColors.success, width: 1.5),
               ),
             ),
           ),
@@ -355,7 +354,7 @@ class _EditAsetUsahaScreenState extends ConsumerState<EditAsetUsahaScreen> {
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF1DB57A),
+                        color: AppColors.success,
                       ),
                     ),
                   ],

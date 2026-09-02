@@ -753,7 +753,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1DB57A),
+                  color: AppColors.success,
                 ),
               ),
             ],
@@ -778,7 +778,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFFFF5A5A),
+                  color: AppColors.danger,
                 ),
               ),
             ],
@@ -811,7 +811,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                   fontWeight: FontWeight.bold,
                   color: data.penghasilanKotor >= 0
                       ? AppColors.primary
-                      : const Color(0xFFFF5A5A),
+                      : AppColors.danger,
                 ),
               ),
             ],
@@ -888,7 +888,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFF5A623),
+            color: AppColors.warning,
           ),
         ),
         const SizedBox(height: 8),
@@ -920,7 +920,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text('Total Dana', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(formatRupiah(data.totalDana), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFF5A623))),
+            Text(formatRupiah(data.totalDana), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.warning)),
           ],
         ),
         const SizedBox(height: 16),
@@ -938,7 +938,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
             children: [
               Icon(
                 data.seimbang ? Icons.check_circle_outline_rounded : Icons.highlight_off_rounded,
-                color: data.seimbang ? const Color(0xFF1DB57A) : const Color(0xFFFF5A5A),
+                color: data.seimbang ? AppColors.success : AppColors.danger,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -947,7 +947,7 @@ class _PratinjauLaporanScreenState extends State<PratinjauLaporanScreen> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: data.seimbang ? const Color(0xFF1DB57A) : const Color(0xFFFF5A5A),
+                  color: data.seimbang ? AppColors.success : AppColors.danger,
                 ),
               ),
             ],

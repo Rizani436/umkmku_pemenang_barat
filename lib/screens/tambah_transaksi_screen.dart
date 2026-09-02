@@ -1,20 +1,18 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/kategori_transaksi.dart';
 import '../providers/usaha_provider.dart';
-import '../providers/dashboard_provider.dart';
-import '../providers/laporan_provider.dart';
 import '../repositories/transaksi_repository.dart';
 import '../theme/app_colors.dart';
 import 'transaksi_sukses_screen.dart';
 
 import '../models/transaksi.dart';
-import '../providers/riwayat_provider.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
-const _colorMasuk = Color(0xFF1DB57A);
-const _colorKeluar = Color(0xFFFF5A5A);
+const _colorMasuk = AppColors.success;
+const _colorKeluar = AppColors.danger;
 
 class TambahTransaksiScreen extends ConsumerStatefulWidget {
   final Transaksi? transaksiToEdit;
@@ -135,9 +133,7 @@ class _TambahTransaksiScreenState
               kategori: kategori,
               total: _nilai.toDouble(),
             );
-        ref.invalidate(dashboardSummaryProvider);
-        ref.invalidate(riwayatProvider);
-        ref.invalidate(laporanNeracaProvider);
+        refreshDataUsaha(ref);
         if (!mounted) return;
         Navigator.of(context).pop(true);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +150,7 @@ class _TambahTransaksiScreenState
               total: _nilai.toDouble(),
             );
 
-        ref.invalidate(dashboardSummaryProvider);
-        ref.invalidate(laporanNeracaProvider);
+        refreshDataUsaha(ref);
 
         if (!mounted) return;
         Navigator.of(context).pushReplacement(

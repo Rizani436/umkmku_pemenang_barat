@@ -1,15 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/riwayat_item_model.dart';
-import '../providers/riwayat_provider.dart';
-import '../providers/dashboard_provider.dart';
 import '../repositories/transaksi_repository.dart';
 import '../repositories/hutang_repository.dart';
 import '../repositories/piutang_repository.dart';
 import '../theme/app_colors.dart';
 import 'tambah_transaksi_screen.dart';
-import 'riwayat_tab.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class DetailTransaksiScreen extends ConsumerStatefulWidget {
   final RiwayatItemModel item;
@@ -33,10 +31,10 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
   bool get _isPemasukan => _currentItem.tipe == TipeRiwayat.pemasukan;
 
   Color get _activeColor => switch (_currentItem.tipe) {
-        TipeRiwayat.pemasukan => const Color(0xFF1DB57A),
-        TipeRiwayat.pengeluaran => const Color(0xFFFF5A5A),
-        TipeRiwayat.hutang => const Color(0xFFFF5A5A),
-        TipeRiwayat.piutang => const Color(0xFFF5A623),
+        TipeRiwayat.pemasukan => AppColors.success,
+        TipeRiwayat.pengeluaran => AppColors.danger,
+        TipeRiwayat.hutang => AppColors.danger,
+        TipeRiwayat.piutang => AppColors.warning,
       };
 
   Color get _activeBgColor => switch (_currentItem.tipe) {
@@ -72,7 +70,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5A5A),
+              backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -100,10 +98,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
           break;
       }
 
-      ref.invalidate(dashboardSummaryProvider);
-      ref.invalidate(riwayatProvider);
-      ref.invalidate(riwayatHutangProvider);
-      ref.invalidate(riwayatPiutangProvider);
+      refreshDataUsaha(ref);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -132,10 +127,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
       );
 
       if (result == true) {
-        ref.invalidate(dashboardSummaryProvider);
-        ref.invalidate(riwayatProvider);
-        ref.invalidate(riwayatHutangProvider);
-        ref.invalidate(riwayatPiutangProvider);
+        refreshDataUsaha(ref);
         if (!mounted) return;
         Navigator.of(context).pop(true);
       }
@@ -192,10 +184,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
                     nominal: nom,
                     keterangan: controllerKet.text.trim(),
                   );
-              ref.invalidate(dashboardSummaryProvider);
-              ref.invalidate(riwayatProvider);
-              ref.invalidate(riwayatHutangProvider);
-              ref.invalidate(riwayatPiutangProvider);
+              refreshDataUsaha(ref);
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               if (!mounted) return;
@@ -254,10 +243,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
                     nominal: nom,
                     keterangan: controllerKet.text.trim(),
                   );
-              ref.invalidate(dashboardSummaryProvider);
-              ref.invalidate(riwayatProvider);
-              ref.invalidate(riwayatHutangProvider);
-              ref.invalidate(riwayatPiutangProvider);
+              refreshDataUsaha(ref);
               if (!ctx.mounted) return;
               Navigator.pop(ctx);
               if (!mounted) return;
@@ -536,7 +522,7 @@ class _DetailTransaksiScreenState extends ConsumerState<DetailTransaksiScreen> {
                 ),
                 child: const Icon(
                   Icons.delete_outline_rounded,
-                  color: Color(0xFFFF5A5A),
+                  color: AppColors.danger,
                   size: 22,
                 ),
               ),

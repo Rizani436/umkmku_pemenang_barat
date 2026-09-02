@@ -12,6 +12,7 @@ import 'samakan_uang_laci_screen.dart';
 import 'ubah_pin_screen.dart';
 import 'backup_pulihkan_screen.dart';
 import '../utils/format.dart';
+import '../providers/refresh.dart';
 
 class DataWilayahIndonesia {
   static const Map<String, Map<String, Map<String, List<String>>>> provData = {
@@ -156,9 +157,9 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
 
 
   Future<void> _handleRefresh() async {
-    ref.invalidate(currentUsahaProvider);
+    refreshDataUsaha(ref);
     ref.invalidate(authControllerProvider);
-    ref.invalidate(laporanNeracaProvider);
+    refreshDataUsaha(ref);
     try {
       await Future.wait([
         ref.read(currentUsahaProvider.future),
@@ -178,7 +179,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Color(0xFFFF5A5A),
+            color: AppColors.danger,
           ),
         ),
         content: const Text(
@@ -202,7 +203,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5A5A),
+              backgroundColor: AppColors.danger,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
@@ -537,7 +538,7 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                       child: OutlinedButton.icon(
                         onPressed: () => _confirmLogout(context),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFFFF5A5A),
+                          foregroundColor: AppColors.danger,
                           backgroundColor: const Color(0xFFFFF5F5),
                           side: const BorderSide(
                               color: Color(0xFFFFC1C1), width: 1),
