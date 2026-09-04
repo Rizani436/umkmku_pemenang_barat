@@ -58,6 +58,29 @@ class TransaksiRepository {
     return (rows.first['jumlah'] as num?)?.toDouble() ?? 0;
   }
 
+  /// Apakah ada transaksi tercatat pada [tanggal].
+  ///
+  /// Sengaja menghitung baris, bukan menjumlahkan `total` seperti
+  /// [_sumTanggal]: pengingat harian perlu tahu "sudah mencatat atau belum",
+  /// dan transaksi bernilai 0 tetap dihitung sebagai sudah mencatat.
+  Future<bool> adaTransaksiPadaTanggal(String idUsaha, DateTime tanggal) async {
+    final db = await _db.database;
+    final start =
+        DateTime(tanggal.year, tanggal.month, tanggal.day).toIso8601String();
+    final end = DateTime(tanggal.year, tanggal.month, tanggal.day + 1)
+        .toIso8601String();
+
+    final rows = await db.rawQuery(
+      '''
+      SELECT 1 FROM transaksi
+      WHERE id_usaha = ? AND tgl >= ? AND tgl < ?
+      LIMIT 1
+      ''',
+      [idUsaha, start, end],
+    );
+    return rows.isNotEmpty;
+  }
+
   Future<double> getTotalPemasukanAll(String idUsaha) async {
     final db = await _db.database;
     final rows = await db.rawQuery(

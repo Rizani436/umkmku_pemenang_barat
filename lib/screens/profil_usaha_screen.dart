@@ -11,6 +11,7 @@ import 'edit_aset_usaha_screen.dart';
 import 'samakan_uang_laci_screen.dart';
 import 'ubah_pin_screen.dart';
 import 'backup_pulihkan_screen.dart';
+import 'pengaturan_notifikasi_screen.dart';
 import '../utils/format.dart';
 import '../providers/refresh.dart';
 
@@ -446,6 +447,23 @@ class _ProfilUsahaScreenState extends ConsumerState<ProfilUsahaScreen> {
                                   ),
                                 );
                               }
+                            },
+                          ),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 10),
+                            child: Divider(height: 1, color: Color(0xFFEEEDF5)),
+                          ),
+                          _menuTile(
+                            icon: Icons.notifications_active_outlined,
+                            title: 'Pengingat',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const PengaturanNotifikasiScreen(),
+                                ),
+                              );
                             },
                           ),
                           const Padding(

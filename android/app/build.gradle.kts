@@ -13,6 +13,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // flutter_local_notifications butuh ini (dicek lewat AAR metadata-nya
+        // saat build) untuk memakai API java.time di bawah Android 8.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -34,6 +37,12 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            // Wajib sejak ada flutter_local_notifications: lihat catatan di
+            // proguard-rules.pro.
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -41,4 +50,10 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Versi ini yang diminta flutter_local_notifications 22.3.0 — lihat
+    // coreLibraryDesugaring di android/build.gradle milik plugin tersebut.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
