@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
+import '../providers/notifikasi_provider.dart';
 import '../providers/usaha_provider.dart';
 import '../theme/app_colors.dart';
 import 'welcome_screen.dart';
@@ -34,6 +35,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final usahaAsync = ref.watch(currentUsahaProvider);
+
+    // Menjadwalkan ulang notifikasi dari data terbaru. Cukup di-watch di sini:
+    // provider-nya bergantung pada daftar kasbon & transaksi hari ini, yang
+    // semuanya turun dari currentUsahaProvider — jadi setiap refreshDataUsaha()
+    // ikut menyegarkan jadwal pengingat.
+    ref.watch(sinkronisasiNotifikasiProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
